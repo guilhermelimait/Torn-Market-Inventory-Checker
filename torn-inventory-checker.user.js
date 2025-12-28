@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      4.3
+// @version      4.4
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -521,12 +521,21 @@
         if (inventory && itemDatabase) {
             markOwnedItems(inventory, itemDatabase);
             
-            // Set up observer to mark items when page content changes
-            const observer = new MutationObserver(() => {
-                markOwnedItems(inventory, itemDatabase);
-            });
-
-            observer.observe(document.body, {
+            // Set up debounced observer to mark items when page content changes
+            let markTimeout;
+            const debouncedMark = () => {
+                clearTimeout(markTimeout);
+                markTimeout = setTimeout(() => {
+                    markOwnedItems(inventory, itemDatabase);
+                }, 500); // Wait 500ms after last change before re-marking
+            };
+            
+            const observer = new MutationObserver(debouncedMark);
+            
+            // Only observe the main content area, not the entire body
+            const mainContent = document.querySelector('#mainContainer, main, [class*="app-content"], [class*="mainContainer"]') || document.body;
+            
+            observer.observe(mainContent, {
                 childList: true,
                 subtree: true
             });
