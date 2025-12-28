@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.8
+// @version      2.9
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -213,54 +213,72 @@
 
     // Add settings button to left navigation bar
     function addSettingsButton() {
-        // Find the left sidebar navigation
-        const sidebar = document.querySelector('#sidebar');
+        console.log('[Torn Inventory] addSettingsButton: Starting...');
+        
+        // Find the left sidebar navigation - try multiple selectors
+        let sidebar = document.querySelector('#sidebar');
         if (!sidebar) {
-            console.log('[Torn Inventory] Sidebar not found, retrying...');
+            sidebar = document.querySelector('aside');
+        }
+        if (!sidebar) {
+            sidebar = document.querySelector('[class*="sidebar"]');
+        }
+        
+        if (!sidebar) {
+            console.log('[Torn Inventory] Sidebar not found, checking document structure...');
+            console.log('[Torn Inventory] Body children:', document.body.children);
             setTimeout(addSettingsButton, 1000);
             return;
         }
+        
+        console.log('[Torn Inventory] Sidebar found:', sidebar);
 
         // Check if already added
         if (document.querySelector('#torn-inventory-settings')) {
+            console.log('[Torn Inventory] Settings button already added');
             return;
         }
 
-        // Find the area navigation section (contains links like Home, Items, City, etc.)
-        const areaNavigation = sidebar.querySelector('.area-toggle__content');
-        if (!areaNavigation) {
-            console.log('[Torn Inventory] Area navigation not found');
+        // Try to find navigation lists
+        const navLists = sidebar.querySelectorAll('ul');
+        console.log('[Torn Inventory] Found', navLists.length, 'navigation lists in sidebar');
+        
+        if (navLists.length === 0) {
+            console.log('[Torn Inventory] No navigation lists found, retrying...');
+            setTimeout(addSettingsButton, 1000);
             return;
         }
 
         // Create the settings link matching Torn's style
         const settingsItem = document.createElement('li');
         settingsItem.id = 'torn-inventory-settings';
+        settingsItem.style.cursor = 'pointer';
         settingsItem.innerHTML = `
-            <a class="desaturate" title="Manage API key for Torn Market Inventory Checker">
-                <span>Torn Market Inventory Checker</span>
+            <a style="display: block; padding: 8px; cursor: pointer;">
+                <span>📦 Torn Market Inventory Checker</span>
             </a>
         `;
         
         // Add click handler
         settingsItem.addEventListener('click', (e) => {
             e.preventDefault();
+            console.log('[Torn Inventory] Settings button clicked');
             showApiBar('Update your Torn API key:');
         });
 
-        // Find the ul list and add our item
-        const navList = areaNavigation.querySelector('ul');
-        if (navList) {
-            // Add it after the first few items (after Home, Items, City, etc.)
-            const itemsLink = Array.from(navList.querySelectorAll('li')).find(li => 
-                li.textContent.includes('Items')
-            );
-            if (itemsLink && itemsLink.nextSibling) {
-                navList.insertBefore(settingsItem, itemsLink.nextSibling);
-            } else {
-                navList.appendChild(settingsItem);
+        // Add to the first navigation list that looks like it has menu items
+        let added = false;
+        navLists.forEach((list, index) => {
+            if (!added && list.querySelectorAll('li').length > 0) {
+                console.log('[Torn Inventory] Adding to navigation list', index);
+                list.appendChild(settingsItem);
+                added = true;
+                console.log('[Torn Inventory] Settings button successfully added to sidebar');
             }
-            console.log('[Torn Inventory] Settings button added to sidebar');
+        });
+        
+        if (!added) {
+            console.log('[Torn Inventory] Could not find suitable navigation list');
         }
     }
 
