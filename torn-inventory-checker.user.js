@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.0
+// @version      6.1
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -631,21 +631,49 @@
     }
 
     // Add sidebar button
+    let sidebarRetries = 0;
+    const MAX_RETRIES = 10;
+    
     function addSidebarButton() {
+        console.log('[Torn Shopping] addSidebarButton attempt', ++sidebarRetries);
+        
+        // Try multiple selectors for sidebar
         let sidebar = document.querySelector('#sidebar');
         if (!sidebar) sidebar = document.querySelector('aside');
         if (!sidebar) sidebar = document.querySelector('[class*="sidebar"]');
+        if (!sidebar) sidebar = document.querySelector('nav');
+        if (!sidebar) sidebar = document.querySelector('[class*="Sidebar"]');
+        
+        console.log('[Torn Shopping] Sidebar element:', sidebar);
         
         if (!sidebar) {
-            setTimeout(addSidebarButton, 1000);
+            if (sidebarRetries < MAX_RETRIES) {
+                console.log('[Torn Shopping] Sidebar not found, retrying...');
+                setTimeout(addSidebarButton, 1000);
+            } else {
+                console.error('[Torn Shopping] Could not find sidebar after', MAX_RETRIES, 'attempts');
+                // Add floating button as fallback
+                addFloatingButton();
+            }
             return;
         }
 
-        if (document.querySelector('#torn-shopping-btn')) return;
+        if (document.querySelector('#torn-shopping-btn')) {
+            console.log('[Torn Shopping] Buttons already added');
+            return;
+        }
 
         const navLists = sidebar.querySelectorAll('ul');
+        console.log('[Torn Shopping] Found', navLists.length, 'navigation lists');
+        
         if (navLists.length === 0) {
-            setTimeout(addSidebarButton, 1000);
+            if (sidebarRetries < MAX_RETRIES) {
+                console.log('[Torn Shopping] No nav lists found, retrying...');
+                setTimeout(addSidebarButton, 1000);
+            } else {
+                console.error('[Torn Shopping] No navigation lists found after', MAX_RETRIES, 'attempts');
+                addFloatingButton();
+            }
             return;
         }
 
@@ -682,13 +710,67 @@
             }
         });
 
+        let added = false;
         navLists.forEach((list, index) => {
-            if (list.querySelectorAll('li').length > 0) {
+            if (!added && list.querySelectorAll('li').length > 0) {
+                console.log('[Torn Shopping] Adding buttons to nav list', index);
                 list.appendChild(shoppingButton);
                 list.appendChild(apiButton);
-                return;
+                added = true;
+                console.log('[Torn Shopping] ✓ Sidebar buttons successfully added!');
             }
         });
+        
+        if (!added) {
+            console.error('[Torn Shopping] Could not add buttons to any nav list');
+            addFloatingButton();
+        }
+    }
+    
+    // Fallback: Add floating button if sidebar not found
+    function addFloatingButton() {
+        if (document.querySelector('#torn-shopping-float-btn')) return;
+        
+        console.log('[Torn Shopping] Adding floating button as fallback');
+        
+        const floatButton = document.createElement('div');
+        floatButton.id = 'torn-shopping-float-btn';
+        floatButton.innerHTML = '🛒';
+        floatButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 99998;
+            transition: transform 0.2s;
+        `;
+        
+        floatButton.addEventListener('mouseenter', () => {
+            floatButton.style.transform = 'scale(1.1)';
+        });
+        
+        floatButton.addEventListener('mouseleave', () => {
+            floatButton.style.transform = 'scale(1)';
+        });
+        
+        floatButton.addEventListener('click', () => {
+            showShoppingListModal();
+        });
+        
+        floatButton.title = 'Shopping List & Price Alerts - Click to open';
+        
+        document.body.appendChild(floatButton);
+        console.log('[Torn Shopping] ✓ Floating button added');
     }
 
     // Initialize
