@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Torn Market Inventory Checker
+// @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      5.0
-// @description  Checkmark items you own in Torn.com market
+// @version      6.0
+// @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
 // @grant        none
@@ -13,160 +13,254 @@
     'use strict';
 
     const API_KEY_STORAGE = 'torn_api_key';
-    const INVENTORY_CACHE = 'torn_inventory_cache';
+    const SHOPPING_LIST_STORAGE = 'torn_shopping_list';
+    const PRICE_HISTORY_STORAGE = 'torn_price_history';
     const ITEM_DB_CACHE = 'torn_item_database';
-    const CACHE_DURATION = 30 * 1000; // 30 seconds
     const DB_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+    const PRICE_CHECK_INTERVAL = 5 * 60 * 1000; // Check prices every 5 minutes
 
     // Add styles using standard DOM method
     const styleElement = document.createElement('style');
     styleElement.textContent = `
-        .torn-api-bar {
+        .torn-shopping-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            z-index: 100000;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .torn-shopping-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
-            padding: 10px 20px;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
             z-index: 99999;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
         }
-        .torn-api-bar-content {
-            max-width: 1400px;
-            margin: 0 auto;
+        .torn-shopping-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
+            color: white;
+            padding: 20px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
         }
-        .torn-api-bar-text {
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 600;
+        .torn-shopping-header h2 {
             margin: 0;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            font-size: 20px;
         }
-        .torn-api-bar input {
-            padding: 8px 12px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 6px;
-            width: 280px;
-            font-size: 13px;
-            background: white;
+        .torn-shopping-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
             transition: all 0.2s;
+        }
+        .torn-shopping-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .torn-shopping-content {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(80vh - 140px);
+        }
+        .torn-shopping-add {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .torn-shopping-add input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .torn-shopping-add input:focus {
             outline: none;
+            border-color: #1e3a8a;
         }
-        .torn-api-bar input:focus {
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
-        }
-        .torn-api-bar button {
-            padding: 8px 16px;
-            background: white;
-            color: #1e3a8a;
+        .torn-shopping-add button {
+            padding: 10px 20px;
+            background: #1e3a8a;
+            color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 13px;
             transition: all 0.2s;
         }
-        .torn-api-bar button:hover {
-            background: #f0f9ff;
-            transform: translateY(-1px);
+        .torn-shopping-add button:hover {
+            background: #312e81;
         }
-        .torn-api-bar .close-btn {
-            background: #dc2626;
-            color: white;
+        .torn-shopping-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
-        .torn-api-bar .close-btn:hover {
-            background: #b91c1c;
+        .torn-shopping-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
-        .owned-item-check {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #4CAF50;
-            color: white;
-            font-weight: bold;
-            font-size: 11px;
-            padding: 4px 8px;
+        .torn-shopping-item-info {
+            flex: 1;
+        }
+        .torn-shopping-item-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 5px;
+            color: #1f2937;
+        }
+        .torn-shopping-item-prices {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .price-item-market {
+            color: #2563eb;
+        }
+        .price-bazaar {
+            color: #059669;
+        }
+        .price-drop {
+            background: #dcfce7;
+            color: #166534;
+            padding: 2px 6px;
             border-radius: 4px;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            pointer-events: none;
+            font-weight: 600;
+            font-size: 11px;
+            animation: pulse 2s infinite;
         }
-        .item-owned {
-            position: relative;
-            border: 2px solid #4CAF50 !important;
-            box-shadow: 0 0 8px rgba(76, 175, 80, 0.4) !important;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .torn-shopping-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .torn-shopping-item-actions button {
+            background: transparent;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .torn-shopping-item-actions button:hover {
+            background: #f3f4f6;
+        }
+        .btn-remove {
+            color: #dc2626;
+            border-color: #dc2626 !important;
+        }
+        .btn-remove:hover {
+            background: #fee2e2 !important;
+        }
+        .torn-shopping-empty {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        .price-checking {
+            font-size: 12px;
+            color: #6b7280;
+            font-style: italic;
+        }
+        .torn-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-left: 4px solid #059669;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100001;
+            animation: slideIn 0.3s ease-out;
+            max-width: 350px;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .torn-notification-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #1f2937;
+        }
+        .torn-notification-body {
+            font-size: 14px;
+            color: #6b7280;
         }
     `;
     document.head.appendChild(styleElement);
 
-    // Get stored API key
+    // Storage functions
     function getApiKey() {
-        const key = localStorage.getItem(API_KEY_STORAGE);
-        console.log('[Torn Inventory] getApiKey:', key ? 'Found' : 'Not found');
-        return key;
+        return localStorage.getItem(API_KEY_STORAGE);
     }
 
-    // Save API key
     function saveApiKey(key) {
-        console.log('[Torn Inventory] saveApiKey: Saving API key');
         localStorage.setItem(API_KEY_STORAGE, key);
     }
 
-    // Get cached inventory
-    function getCachedInventory() {
-        const cached = localStorage.getItem(INVENTORY_CACHE);
-        if (!cached) {
-            console.log('[Torn Inventory] getCachedInventory: No cache found');
-            return null;
-        }
-
-        const data = JSON.parse(cached);
-        if (Date.now() - data.timestamp > CACHE_DURATION) {
-            console.log('[Torn Inventory] getCachedInventory: Cache expired');
-            return null;
-        }
-        console.log('[Torn Inventory] getCachedInventory: Using cached inventory with', data.inventory.length, 'items');
-        return data.inventory;
+    function getShoppingList() {
+        const list = localStorage.getItem(SHOPPING_LIST_STORAGE);
+        return list ? JSON.parse(list) : [];
     }
 
-    // Save inventory to cache
-    function saveInventoryCache(inventory) {
-        console.log('[Torn Inventory] saveInventoryCache: Caching', inventory.length, 'items');
-        const data = {
-            inventory: inventory,
-            timestamp: Date.now()
-        };
-        localStorage.setItem(INVENTORY_CACHE, JSON.stringify(data));
+    function saveShoppingList(list) {
+        localStorage.setItem(SHOPPING_LIST_STORAGE, JSON.stringify(list));
     }
 
-    // Get cached item database
+    function getPriceHistory() {
+        const history = localStorage.getItem(PRICE_HISTORY_STORAGE);
+        return history ? JSON.parse(history) : {};
+    }
+
+    function savePriceHistory(history) {
+        localStorage.setItem(PRICE_HISTORY_STORAGE, JSON.stringify(history));
+    }
+
     function getCachedItemDB() {
         const cached = localStorage.getItem(ITEM_DB_CACHE);
-        if (!cached) {
-            console.log('[Torn Inventory] getCachedItemDB: No cache found');
-            return null;
-        }
+        if (!cached) return null;
 
         const data = JSON.parse(cached);
-        if (Date.now() - data.timestamp > DB_CACHE_DURATION) {
-            console.log('[Torn Inventory] getCachedItemDB: Cache expired');
-            return null;
-        }
-        console.log('[Torn Inventory] getCachedItemDB: Using cached database with', Object.keys(data.items).length, 'items');
+        if (Date.now() - data.timestamp > DB_CACHE_DURATION) return null;
+        
         return data.items;
     }
 
-    // Save item database to cache
     function saveItemDBCache(items) {
-        console.log('[Torn Inventory] saveItemDBCache: Caching', Object.keys(items).length, 'items');
         const data = {
             items: items,
             timestamp: Date.now()
@@ -174,359 +268,454 @@
         localStorage.setItem(ITEM_DB_CACHE, JSON.stringify(data));
     }
 
-    // Fetch item database from Torn API
+    // API functions
     async function fetchItemDatabase(apiKey) {
-        console.log('[Torn Inventory] fetchItemDatabase: Starting API call...');
         try {
             const response = await fetch(`https://api.torn.com/torn/?selections=items&key=${apiKey}`);
-            console.log('[Torn Inventory] fetchItemDatabase: Response status:', response.status);
             const data = await response.json();
 
             if (data.error) {
-                console.error('[Torn Inventory] Torn API Error:', data.error);
+                console.error('[Torn Shopping] API Error:', data.error);
                 return null;
             }
 
             if (data.items) {
-                // Create name->ID mapping
-                const nameToId = {};
-                for (const [id, item] of Object.entries(data.items)) {
-                    const itemName = item.name.toLowerCase();
-                    nameToId[itemName] = parseInt(id);
-                }
-                console.log('[Torn Inventory] fetchItemDatabase: Created mapping for', Object.keys(nameToId).length, 'items');
-                return nameToId;
+                return data.items;
             }
 
             return null;
         } catch (error) {
-            console.error('[Torn Inventory] Error fetching item database:', error);
+            console.error('[Torn Shopping] Error fetching item database:', error);
             return null;
         }
     }
 
-    // Fetch user inventory from API
-    async function fetchInventory(apiKey) {
-        console.log('[Torn Inventory] fetchInventory: Starting API call...');
+    async function fetchItemPrice(itemId, apiKey) {
         try {
-            // Use display case API instead of inventory (which was deprecated)
-            const response = await fetch(`https://api.torn.com/user/?selections=display&key=${apiKey}`);
-            console.log('[Torn Inventory] fetchInventory: Response status:', response.status);
-            const data = await response.json();
-            console.log('[Torn Inventory] fetchInventory: Data received:', data);
+            // Fetch both Item Market and Bazaar prices
+            const marketResponse = await fetch(`https://api.torn.com/market/${itemId}?selections=itemmarket&key=${apiKey}`);
+            const marketData = await marketResponse.json();
 
-            if (data.error) {
-                console.error('[Torn Inventory] Torn API Error:', data.error);
-                alert('API Error: ' + data.error.error);
-                return null;
-            }
+            const bazaarResponse = await fetch(`https://api.torn.com/market/${itemId}?selections=bazaar&key=${apiKey}`);
+            const bazaarData = await bazaarResponse.json();
 
-            const itemIds = new Set();
-            
-            // Check display case items
-            if (data.display && Array.isArray(data.display)) {
-                console.log('[Torn Inventory] Display case data:', data.display);
-                for (const item of data.display) {
-                    if (item.ID) {
-                        itemIds.add(item.ID);
-                    }
+            let lowestMarket = null;
+            let lowestBazaar = null;
+
+            // Get lowest Item Market price
+            if (marketData.itemmarket && !marketData.error) {
+                const listings = Object.values(marketData.itemmarket);
+                if (listings.length > 0) {
+                    lowestMarket = Math.min(...listings.map(l => l.cost));
                 }
-            } else if (typeof data.display === 'string') {
-                // API returned error message as string
-                console.error('[Torn Inventory] API selection unavailable:', data.display);
-                alert('Torn API Error: ' + data.display + '\n\nThis script may no longer work as Torn has changed their API.');
-                return null;
             }
 
-            const result = Array.from(itemIds);
-            console.log('[Torn Inventory] fetchInventory: Found', result.length, 'items in display case:', result);
-            
-            if (result.length === 0) {
-                console.log('[Torn Inventory] No items found. Note: This script can only detect items in your Display Case, not your full inventory.');
+            // Get lowest Bazaar price
+            if (bazaarData.bazaar && !bazaarData.error) {
+                const listings = Object.values(bazaarData.bazaar);
+                if (listings.length > 0) {
+                    lowestBazaar = Math.min(...listings.map(l => l.cost));
+                }
             }
-            
-            return result;
+
+            return {
+                itemMarket: lowestMarket,
+                bazaar: lowestBazaar,
+                timestamp: Date.now()
+            };
         } catch (error) {
-            console.error('[Torn Inventory] Error fetching inventory:', error);
+            console.error('[Torn Shopping] Error fetching price for item', itemId, error);
             return null;
         }
     }
 
-    // Show API key input bar
-    function showApiBar(message = 'Enter your Torn API key to enable inventory checking:') {
-        console.log('[Torn Inventory] showApiBar: Displaying API input bar');
-        // Remove existing bar if any
-        const existingBar = document.querySelector('.torn-api-bar');
-        if (existingBar) existingBar.remove();
+    // Notification function
+    function showNotification(title, body) {
+        const notification = document.createElement('div');
+        notification.className = 'torn-notification';
+        notification.innerHTML = `
+            <div class="torn-notification-title">🔔 ${title}</div>
+            <div class="torn-notification-body">${body}</div>
+        `;
+        
+        document.body.appendChild(notification);
 
-        const bar = document.createElement('div');
-        bar.className = 'torn-api-bar';
-        bar.innerHTML = `
-            <div class="torn-api-bar-content">
-                <span class="torn-api-bar-text">${message}</span>
-                <input type="text" id="torn-api-input" placeholder="Paste your API key here..." />
-                <button id="torn-api-save">💾 Save</button>
-                <button class="close-btn" id="torn-api-close">✕ Close</button>
+        setTimeout(() => {
+            notification.style.animation = 'slideIn 0.3s ease-out reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
+
+    // Check prices and detect drops
+    async function checkPrices(apiKey) {
+        const shoppingList = getShoppingList();
+        if (shoppingList.length === 0) return;
+
+        const itemDatabase = getCachedItemDB() || await fetchItemDatabase(apiKey);
+        if (!itemDatabase) return;
+
+        const priceHistory = getPriceHistory();
+
+        for (const item of shoppingList) {
+            const prices = await fetchItemPrice(item.id, apiKey);
+            if (!prices) continue;
+
+            const itemName = itemDatabase[item.id]?.name || `Item ${item.id}`;
+            
+            // Initialize price history for this item if it doesn't exist
+            if (!priceHistory[item.id]) {
+                priceHistory[item.id] = {
+                    lowestMarket: prices.itemMarket,
+                    lowestBazaar: prices.bazaar,
+                    lastCheck: prices.timestamp
+                };
+            } else {
+                // Check for price drops
+                const history = priceHistory[item.id];
+                let dropDetected = false;
+                let dropMessage = '';
+
+                if (prices.itemMarket && history.lowestMarket && prices.itemMarket < history.lowestMarket) {
+                    const dropPercent = ((history.lowestMarket - prices.itemMarket) / history.lowestMarket * 100).toFixed(1);
+                    dropMessage = `Item Market: $${prices.itemMarket.toLocaleString()} (-${dropPercent}%)`;
+                    dropDetected = true;
+                    history.lowestMarket = prices.itemMarket;
+                }
+
+                if (prices.bazaar && history.lowestBazaar && prices.bazaar < history.lowestBazaar) {
+                    const dropPercent = ((history.lowestBazaar - prices.bazaar) / history.lowestBazaar * 100).toFixed(1);
+                    if (dropMessage) dropMessage += '\n';
+                    dropMessage += `Bazaar: $${prices.bazaar.toLocaleString()} (-${dropPercent}%)`;
+                    dropDetected = true;
+                    history.lowestBazaar = prices.bazaar;
+                }
+
+                if (dropDetected) {
+                    showNotification(`Price Drop: ${itemName}`, dropMessage);
+                }
+
+                history.lastCheck = prices.timestamp;
+            }
+
+            // Update item in shopping list with current prices
+            item.currentPrices = prices;
+        }
+
+        savePriceHistory(priceHistory);
+        saveShoppingList(shoppingList);
+    }
+
+    // Shopping list UI
+    function showShoppingListModal() {
+        // Remove existing modal if any
+        document.querySelectorAll('.torn-shopping-overlay, .torn-shopping-modal').forEach(el => el.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'torn-shopping-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'torn-shopping-modal';
+        modal.innerHTML = `
+            <div class="torn-shopping-header">
+                <h2>🛒 Shopping List & Price Alerts</h2>
+                <button class="torn-shopping-close">✕</button>
+            </div>
+            <div class="torn-shopping-content">
+                <div class="torn-shopping-add">
+                    <input type="text" id="item-search" placeholder="Search for item by name..." />
+                    <button id="add-item-btn">Add to List</button>
+                </div>
+                <ul class="torn-shopping-list" id="shopping-list-items"></ul>
             </div>
         `;
 
-        document.body.insertBefore(bar, document.body.firstChild);
-        // Push page content down to avoid overlap
-        document.body.style.paddingTop = '45px';
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
 
-        document.getElementById('torn-api-save').addEventListener('click', async () => {
-            const apiKey = document.getElementById('torn-api-input').value.trim();
-            if (apiKey) {
-                saveApiKey(apiKey);
-                bar.remove();
-                document.body.style.paddingTop = '0';
-                alert('API key saved! Refreshing inventory...');
-                await loadInventoryAndMark();
-            }
+        // Close handlers
+        overlay.addEventListener('click', () => {
+            overlay.remove();
+            modal.remove();
+        });
+        modal.querySelector('.torn-shopping-close').addEventListener('click', () => {
+            overlay.remove();
+            modal.remove();
         });
 
-        document.getElementById('torn-api-close').addEventListener('click', () => {
-            bar.remove();
-            document.body.style.paddingTop = '0';
+        // Render shopping list
+        renderShoppingList();
+
+        // Add item handler
+        document.getElementById('add-item-btn').addEventListener('click', async () => {
+            await addItemToList();
         });
 
-        // Enter key to save
-        document.getElementById('torn-api-input').addEventListener('keypress', (e) => {
+        document.getElementById('item-search').addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
-                document.getElementById('torn-api-save').click();
+                await addItemToList();
             }
         });
     }
 
-    // Add settings button to left navigation bar
-    function addSettingsButton() {
-        console.log('[Torn Inventory] addSettingsButton: Starting...');
+    async function addItemToList() {
+        const searchInput = document.getElementById('item-search');
+        const searchTerm = searchInput.value.trim().toLowerCase();
         
-        // Find the left sidebar navigation - try multiple selectors
-        let sidebar = document.querySelector('#sidebar');
-        if (!sidebar) {
-            sidebar = document.querySelector('aside');
-        }
-        if (!sidebar) {
-            sidebar = document.querySelector('[class*="sidebar"]');
-        }
-        
-        if (!sidebar) {
-            console.log('[Torn Inventory] Sidebar not found, checking document structure...');
-            console.log('[Torn Inventory] Body children:', document.body.children);
-            setTimeout(addSettingsButton, 1000);
-            return;
-        }
-        
-        console.log('[Torn Inventory] Sidebar found:', sidebar);
+        if (!searchTerm) return;
 
-        // Check if already added
-        if (document.querySelector('#torn-inventory-settings')) {
-            console.log('[Torn Inventory] Settings button already added');
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            alert('Please set your API key first!');
             return;
         }
 
-        // Try to find navigation lists
-        const navLists = sidebar.querySelectorAll('ul');
-        console.log('[Torn Inventory] Found', navLists.length, 'navigation lists in sidebar');
-        
-        if (navLists.length === 0) {
-            console.log('[Torn Inventory] No navigation lists found, retrying...');
-            setTimeout(addSettingsButton, 1000);
-            return;
-        }
-
-        // Create the settings link matching Torn's style
-        const settingsItem = document.createElement('li');
-        settingsItem.id = 'torn-inventory-settings';
-        settingsItem.style.cursor = 'pointer';
-        settingsItem.innerHTML = `
-            <a style="display: block; padding: 8px; cursor: pointer;">
-                <span>📦 Market Inventory Checker</span>
-            </a>
-        `;
-        
-        // Add click handler
-        settingsItem.addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log('[Torn Inventory] Settings button clicked');
-            showApiBar('Update your Torn API key:');
-        });
-
-        // Create refresh button
-        const refreshItem = document.createElement('li');
-        refreshItem.id = 'torn-inventory-refresh';
-        refreshItem.style.cursor = 'pointer';
-        refreshItem.innerHTML = `
-            <a style="display: block; padding: 8px; cursor: pointer; color: #4CAF50;">
-                <span>🔄 Refresh Inventory</span>
-            </a>
-        `;
-        
-        // Add refresh click handler
-        refreshItem.addEventListener('click', async (e) => {
-            e.preventDefault();
-            console.log('[Torn Inventory] Refresh button clicked');
-            localStorage.removeItem(INVENTORY_CACHE);
-            refreshItem.innerHTML = `<a style="display: block; padding: 8px; cursor: pointer; color: #FFA500;"><span>⏳ Refreshing...</span></a>`;
-            await loadInventoryAndMark();
-            refreshItem.innerHTML = `<a style="display: block; padding: 8px; cursor: pointer; color: #4CAF50;"><span>🔄 Refresh Inventory</span></a>`;
-        });
-
-        // Add to the first navigation list that looks like it has menu items
-        let added = false;
-        navLists.forEach((list, index) => {
-            if (!added && list.querySelectorAll('li').length > 0) {
-                console.log('[Torn Inventory] Adding to navigation list', index);
-                list.appendChild(settingsItem);
-                list.appendChild(refreshItem);
-                added = true;
-                console.log('[Torn Inventory] Settings and refresh buttons successfully added to sidebar');
-            }
-        });
-        
-        if (!added) {
-            console.log('[Torn Inventory] Could not find suitable navigation list');
-        }
-    }
-
-    // Mark items as owned
-    function markOwnedItems(inventoryIds, itemDatabase) {
-        if (!inventoryIds || inventoryIds.length === 0) {
-            console.log('[Torn Inventory] markOwnedItems: No inventory items to mark');
-            return;
-        }
-        
+        const itemDatabase = getCachedItemDB() || await fetchItemDatabase(apiKey);
         if (!itemDatabase) {
-            console.log('[Torn Inventory] markOwnedItems: No item database available');
+            alert('Failed to load item database');
             return;
         }
 
-        // Market pages - focus on actual market items
-        const selectors = [
-            '[aria-label*="item"]',
-        ];
-        
-        let allElements = [];
-        selectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            if (elements.length > 0) {
-                // Filter out empty elements AND navigation items
-                const nonEmptyElements = Array.from(elements).filter(el => {
-                    // Exclude menu items and navigation
-                    if (el.classList.contains('menu-item-link') || 
-                        el.closest('.menu') || 
-                        el.closest('[class*="nav"]')) {
-                        return false;
-                    }
-                    return el.textContent.trim().length > 0 || el.children.length > 0;
-                });
-                allElements.push(...nonEmptyElements);
+        // Search for item by name
+        let foundItemId = null;
+        let foundItemName = null;
+
+        for (const [id, item] of Object.entries(itemDatabase)) {
+            if (item.name.toLowerCase().includes(searchTerm)) {
+                foundItemId = parseInt(id);
+                foundItemName = item.name;
+                break;
             }
+        }
+
+        if (!foundItemId) {
+            alert(`Item "${searchTerm}" not found`);
+            return;
+        }
+
+        const shoppingList = getShoppingList();
+        
+        // Check if already in list
+        if (shoppingList.find(item => item.id === foundItemId)) {
+            alert('Item already in shopping list');
+            return;
+        }
+
+        // Add to list
+        shoppingList.push({
+            id: foundItemId,
+            name: foundItemName,
+            addedAt: Date.now()
         });
+
+        saveShoppingList(shoppingList);
+        searchInput.value = '';
         
-        // Remove duplicates
-        const itemElements = [...new Set(allElements)];
-        
-        let markedCount = 0;
-        itemElements.forEach(element => {
-            const itemId = extractItemId(element, itemDatabase);
+        // Fetch initial price
+        const prices = await fetchItemPrice(foundItemId, apiKey);
+        if (prices) {
+            const item = shoppingList.find(i => i.id === foundItemId);
+            item.currentPrices = prices;
+            saveShoppingList(shoppingList);
             
-            if (itemId && inventoryIds.includes(itemId)) {
-                // Find the parent item container (the card/tile that contains the item)
-                let itemContainer = element.closest('li, [class*="item"], [class*="Item"]');
-                if (!itemContainer || itemContainer.classList.contains('menu-item-link')) {
-                    // If no suitable container, use the element itself
-                    itemContainer = element;
-                }
-                
-                if (!itemContainer.querySelector('.owned-item-check')) {
-                    const checkmark = document.createElement('div');
-                    checkmark.className = 'owned-item-check';
-                    checkmark.textContent = '✓ OWNED';
-                    checkmark.title = 'You already own this item';
-                    itemContainer.classList.add('item-owned');
-                    itemContainer.style.position = 'relative'; // Ensure positioning context
-                    itemContainer.appendChild(checkmark);
-                    markedCount++;
-                }
-            }
-        });
-        
-        if (markedCount > 0) {
-            console.log('[Torn Inventory] ✓ Marked', markedCount, 'owned items');
+            // Initialize price history
+            const priceHistory = getPriceHistory();
+            priceHistory[foundItemId] = {
+                lowestMarket: prices.itemMarket,
+                lowestBazaar: prices.bazaar,
+                lastCheck: prices.timestamp
+            };
+            savePriceHistory(priceHistory);
         }
+
+        renderShoppingList();
     }
 
-    // Extract item ID from element using item database
-    function extractItemId(element, itemDatabase) {
-        // Try aria-label first (for buttons like "View info for item eCPU" or "Buy item eCPU, $290...")
-        const ariaLabel = element.getAttribute('aria-label');
-        if (ariaLabel && itemDatabase) {
-            // Match patterns like "View info for item NAME" or "Buy item NAME, $..."
-            const match = ariaLabel.match(/(?:View info for item|Buy item)\s+([^,]+)/i);
-            if (match) {
-                const itemName = match[1].trim().toLowerCase();
-                const itemId = itemDatabase[itemName];
-                if (itemId) {
-                    return itemId;
-                }
-            }
-        }
+    function removeItemFromList(itemId) {
+        let shoppingList = getShoppingList();
+        shoppingList = shoppingList.filter(item => item.id !== itemId);
+        saveShoppingList(shoppingList);
         
-        // Try to find item ID in data attributes
-        if (element.dataset && element.dataset.item) {
-            return parseInt(element.dataset.item);
-        }
+        // Remove from price history
+        const priceHistory = getPriceHistory();
+        delete priceHistory[itemId];
+        savePriceHistory(priceHistory);
         
-        // Try to find in ID attribute
-        const id = element.id;
-        if (id) {
-            const match = id.match(/item-?(\d+)/i);
-            if (match) return parseInt(match[1]);
-        }
-
-        // Try to find in class names
-        const classes = element.className;
-        if (classes) {
-            const match = classes.match(/item-?(\d+)/i);
-            if (match) return parseInt(match[1]);
-        }
-
-        // Try to find in child elements or links
-        const link = element.querySelector('a[href*="item.php"]');
-        if (link) {
-            const match = link.href.match(/[?&]ID=(\d+)/);
-            if (match) return parseInt(match[1]);
-        }
-        
-        // Try to find in href if element itself is a link
-        if (element.href && element.href.includes('item.php')) {
-            const match = element.href.match(/[?&]ID=(\d+)/);
-            if (match) return parseInt(match[1]);
-        }
-
-        return null;
+        renderShoppingList();
     }
 
-    // Load inventory and mark items
-    async function loadInventoryAndMark() {
+    async function refreshItemPrice(itemId) {
         const apiKey = getApiKey();
         if (!apiKey) return;
 
-        // Try to use cached inventory first
-        let inventory = getCachedInventory();
-        
-        if (!inventory) {
-            inventory = await fetchInventory(apiKey);
-            if (inventory) {
-                saveInventoryCache(inventory);
+        const btn = document.querySelector(`button[data-item-id="${itemId}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳';
+        }
+
+        const prices = await fetchItemPrice(itemId, apiKey);
+        if (prices) {
+            const shoppingList = getShoppingList();
+            const item = shoppingList.find(i => i.id === itemId);
+            if (item) {
+                item.currentPrices = prices;
+                saveShoppingList(shoppingList);
             }
         }
 
-        // Try to use cached item database
-        let itemDatabase = getCachedItemDB();
+        renderShoppingList();
+    }
+
+    function renderShoppingList() {
+        const listContainer = document.getElementById('shopping-list-items');
+        if (!listContainer) return;
+
+        const shoppingList = getShoppingList();
         
+        if (shoppingList.length === 0) {
+            listContainer.innerHTML = `
+                <div class="torn-shopping-empty">
+                    <p>📝 Your shopping list is empty</p>
+                    <p>Search for items above to start tracking prices</p>
+                </div>
+            `;
+            return;
+        }
+
+        const priceHistory = getPriceHistory();
+
+        listContainer.innerHTML = shoppingList.map(item => {
+            const history = priceHistory[item.id];
+            let priceDisplay = '<span class="price-checking">Checking prices...</span>';
+            
+            if (item.currentPrices) {
+                const prices = item.currentPrices;
+                const parts = [];
+                
+                if (prices.itemMarket) {
+                    let marketHtml = `<span class="price-item-market">Item Market: $${prices.itemMarket.toLocaleString()}</span>`;
+                    if (history && history.lowestMarket && prices.itemMarket === history.lowestMarket) {
+                        marketHtml += ' <span class="price-drop">LOWEST!</span>';
+                    }
+                    parts.push(marketHtml);
+                }
+                
+                if (prices.bazaar) {
+                    let bazaarHtml = `<span class="price-bazaar">Bazaar: $${prices.bazaar.toLocaleString()}</span>`;
+                    if (history && history.lowestBazaar && prices.bazaar === history.lowestBazaar) {
+                        bazaarHtml += ' <span class="price-drop">LOWEST!</span>';
+                    }
+                    parts.push(bazaarHtml);
+                }
+                
+                if (parts.length > 0) {
+                    priceDisplay = parts.join(' | ');
+                } else {
+                    priceDisplay = '<span style="color: #dc2626;">No listings found</span>';
+                }
+            }
+
+            return `
+                <li class="torn-shopping-item">
+                    <div class="torn-shopping-item-info">
+                        <div class="torn-shopping-item-name">${item.name}</div>
+                        <div class="torn-shopping-item-prices">${priceDisplay}</div>
+                    </div>
+                    <div class="torn-shopping-item-actions">
+                        <button onclick="window.tornShoppingRefresh(${item.id})" data-item-id="${item.id}">🔄</button>
+                        <button class="btn-remove" onclick="window.tornShoppingRemove(${item.id})">🗑️</button>
+                    </div>
+                </li>
+            `;
+        }).join('');
+    }
+
+    // Add sidebar button
+    function addSidebarButton() {
+        let sidebar = document.querySelector('#sidebar');
+        if (!sidebar) sidebar = document.querySelector('aside');
+        if (!sidebar) sidebar = document.querySelector('[class*="sidebar"]');
+        
+        if (!sidebar) {
+            setTimeout(addSidebarButton, 1000);
+            return;
+        }
+
+        if (document.querySelector('#torn-shopping-btn')) return;
+
+        const navLists = sidebar.querySelectorAll('ul');
+        if (navLists.length === 0) {
+            setTimeout(addSidebarButton, 1000);
+            return;
+        }
+
+        const shoppingButton = document.createElement('li');
+        shoppingButton.id = 'torn-shopping-btn';
+        shoppingButton.style.cursor = 'pointer';
+        shoppingButton.innerHTML = `
+            <a style="display: block; padding: 8px; cursor: pointer;">
+                <span>🛒 Shopping List & Alerts</span>
+            </a>
+        `;
+        
+        shoppingButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            showShoppingListModal();
+        });
+
+        // Add API key button
+        const apiButton = document.createElement('li');
+        apiButton.id = 'torn-api-settings-btn';
+        apiButton.style.cursor = 'pointer';
+        apiButton.innerHTML = `
+            <a style="display: block; padding: 8px; cursor: pointer;">
+                <span>🔑 Set API Key</span>
+            </a>
+        `;
+        
+        apiButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const key = prompt('Enter your Torn API key:');
+            if (key) {
+                saveApiKey(key);
+                alert('API key saved! You can now add items to your shopping list.');
+            }
+        });
+
+        navLists.forEach((list, index) => {
+            if (list.querySelectorAll('li').length > 0) {
+                list.appendChild(shoppingButton);
+                list.appendChild(apiButton);
+                return;
+            }
+        });
+    }
+
+    // Initialize
+    async function init() {
+        console.log('[Torn Shopping] Initializing...');
+        
+        // Make functions globally accessible for onclick handlers
+        window.tornShoppingRemove = removeItemFromList;
+        window.tornShoppingRefresh = refreshItemPrice;
+        
+        // Add sidebar button
+        addSidebarButton();
+
+        // Check if API key exists
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            setTimeout(() => {
+                const key = prompt('Welcome to Torn Shopping List & Price Alerts!\n\nEnter your Torn API key to get started:');
+                if (key) {
+                    saveApiKey(key);
+                }
+            }, 1000);
+            return;
+        }
+
+        // Load item database
+        let itemDatabase = getCachedItemDB();
         if (!itemDatabase) {
             itemDatabase = await fetchItemDatabase(apiKey);
             if (itemDatabase) {
@@ -534,60 +723,21 @@
             }
         }
 
-        if (inventory && itemDatabase) {
-            markOwnedItems(inventory, itemDatabase);
-            
-            // Set up debounced observer to mark items when page content changes
-            let markTimeout;
-            const debouncedMark = () => {
-                clearTimeout(markTimeout);
-                markTimeout = setTimeout(() => {
-                    markOwnedItems(inventory, itemDatabase);
-                }, 500); // Wait 500ms after last change before re-marking
-            };
-            
-            const observer = new MutationObserver(debouncedMark);
-            
-            // Only observe the main content area, not the entire body
-            const mainContent = document.querySelector('#mainContainer, main, [class*="app-content"], [class*="mainContainer"]') || document.body;
-            
-            observer.observe(mainContent, {
-                childList: true,
-                subtree: true
-            });
-        }
-    }
+        // Start periodic price checking
+        setInterval(() => {
+            checkPrices(apiKey);
+        }, PRICE_CHECK_INTERVAL);
 
-    // Initialize
-    function init() {
-        console.log('[Torn Inventory] Initializing...');
-        const apiKey = getApiKey();
-        console.log('[Torn Inventory] API Key exists:', !!apiKey);
-
-        // Show API bar if no key is stored
-        if (!apiKey) {
-            console.log('[Torn Inventory] No API key found, showing input bar');
-            setTimeout(() => showApiBar(), 500);
-        }
-
-        // Always add settings button
-        console.log('[Torn Inventory] Adding settings button');
-        addSettingsButton();
-
-        // Load and mark items
-        if (apiKey) {
-            console.log('[Torn Inventory] Loading inventory...');
-            loadInventoryAndMark();
-        }
+        // Check prices immediately
+        setTimeout(() => {
+            checkPrices(apiKey);
+        }, 2000);
     }
 
     // Start when page is ready
-    console.log('[Torn Inventory] Document ready state:', document.readyState);
     if (document.readyState === 'loading') {
-        console.log('[Torn Inventory] Waiting for DOMContentLoaded');
         document.addEventListener('DOMContentLoaded', init);
     } else {
-        console.log('[Torn Inventory] Document ready, initializing now');
         init();
     }
 })();
