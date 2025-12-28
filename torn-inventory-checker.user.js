@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -82,27 +82,6 @@
         }
         .torn-api-bar .close-btn:hover {
             background: #b91c1c;
-        }
-        .torn-api-settings {
-            position: fixed;
-            top: 45px;
-            right: 15px;
-            background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
-            color: white;
-            padding: 8px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            z-index: 9999;
-            font-size: 12px;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
-            transition: all 0.2s;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .torn-api-settings:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.5);
         }
         .owned-item-check {
             color: #4CAF50;
@@ -232,15 +211,57 @@
         });
     }
 
-    // Add settings button to change API key
+    // Add settings button to left navigation bar
     function addSettingsButton() {
-        const settingsBtn = document.createElement('div');
-        settingsBtn.className = 'torn-api-settings';
-        settingsBtn.textContent = '⚙️ API Settings';
-        settingsBtn.addEventListener('click', () => {
+        // Find the left sidebar navigation
+        const sidebar = document.querySelector('#sidebar');
+        if (!sidebar) {
+            console.log('[Torn Inventory] Sidebar not found, retrying...');
+            setTimeout(addSettingsButton, 1000);
+            return;
+        }
+
+        // Check if already added
+        if (document.querySelector('#torn-inventory-settings')) {
+            return;
+        }
+
+        // Find the area navigation section (contains links like Home, Items, City, etc.)
+        const areaNavigation = sidebar.querySelector('.area-toggle__content');
+        if (!areaNavigation) {
+            console.log('[Torn Inventory] Area navigation not found');
+            return;
+        }
+
+        // Create the settings link matching Torn's style
+        const settingsItem = document.createElement('li');
+        settingsItem.id = 'torn-inventory-settings';
+        settingsItem.innerHTML = `
+            <a class="desaturate" title="Inventory Checker Settings">
+                <span>⚙️ Inventory API</span>
+            </a>
+        `;
+        
+        // Add click handler
+        settingsItem.addEventListener('click', (e) => {
+            e.preventDefault();
             showApiBar('Update your Torn API key:');
         });
-        document.body.appendChild(settingsBtn);
+
+        // Find the ul list and add our item
+        const navList = areaNavigation.querySelector('ul');
+        if (navList) {
+            // Add it after the first few items (after Home, Items, City, etc.)
+            const itemsLink = Array.from(navList.querySelectorAll('li')).find(li => 
+                li.textContent.includes('Items')
+            );
+            if (itemsLink && itemsLink.nextSibling) {
+                navList.insertBefore(settingsItem, itemsLink.nextSibling);
+            } else {
+                navList.appendChild(settingsItem);
+            }
+            console.log('[Torn Inventory] Settings button added to sidebar');
+        }
     }
 
     // Mark items as owned
