@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.4
+// @version      6.5
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -501,17 +501,30 @@
         const searchInput = document.getElementById('item-search');
         const autocompleteDiv = document.getElementById('item-autocomplete');
         
+        console.log('[Torn Shopping] Setting up autocomplete...');
+        
         const apiKey = getApiKey();
-        if (!apiKey) return;
+        if (!apiKey) {
+            console.error('[Torn Shopping] No API key for autocomplete');
+            return;
+        }
 
+        console.log('[Torn Shopping] Fetching item database...');
         const itemDatabase = getCachedItemDB() || await fetchItemDatabase(apiKey);
-        if (!itemDatabase) return;
+        if (!itemDatabase) {
+            console.error('[Torn Shopping] Failed to load item database');
+            return;
+        }
+        
+        console.log('[Torn Shopping] Item database loaded:', Object.keys(itemDatabase).length, 'items');
 
         let selectedIndex = -1;
         let matchingItems = [];
 
         searchInput.addEventListener('input', () => {
             const searchTerm = searchInput.value.trim().toLowerCase();
+            
+            console.log('[Torn Shopping] Search term:', searchTerm);
             
             if (searchTerm.length < 2) {
                 autocompleteDiv.style.display = 'none';
@@ -527,6 +540,8 @@
                 }
             }
 
+            console.log('[Torn Shopping] Found', matchingItems.length, 'matching items');
+
             if (matchingItems.length === 0) {
                 autocompleteDiv.style.display = 'none';
                 return;
@@ -541,6 +556,7 @@
             `).join('');
 
             autocompleteDiv.style.display = 'block';
+            console.log('[Torn Shopping] Showing autocomplete with', matchingItems.length, 'items');
             selectedIndex = -1;
 
             // Add click handlers
@@ -550,6 +566,7 @@
                     searchInput.dataset.selectedId = el.dataset.id;
                     searchInput.dataset.selectedName = el.dataset.name;
                     autocompleteDiv.style.display = 'none';
+                    console.log('[Torn Shopping] Selected:', el.dataset.name);
                 });
             });
         });
