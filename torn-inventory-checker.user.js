@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.8
+// @version      6.9
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -327,13 +327,16 @@
     }
 
     async function fetchItemPrice(itemId, apiKey) {
+        console.log('[Torn Shopping] Fetching price for item ID:', itemId);
         try {
             // Fetch both Item Market and Bazaar prices
             const marketResponse = await fetch(`https://api.torn.com/market/${itemId}?selections=itemmarket&key=${apiKey}`);
             const marketData = await marketResponse.json();
+            console.log('[Torn Shopping] Market data:', marketData);
 
             const bazaarResponse = await fetch(`https://api.torn.com/market/${itemId}?selections=bazaar&key=${apiKey}`);
             const bazaarData = await bazaarResponse.json();
+            console.log('[Torn Shopping] Bazaar data:', bazaarData);
 
             let lowestMarket = null;
             let lowestBazaar = null;
