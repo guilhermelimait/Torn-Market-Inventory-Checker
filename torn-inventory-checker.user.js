@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      3.1
+// @version      3.2
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -294,12 +294,11 @@
         
         // Market pages - try multiple selectors
         const selectors = [
-            '[class*="item"]',
-            '[class*="market"]',
-            'li[class*="item"]',
-            'div[class*="item"]',
-            '[data-item]',
-            'a[href*="item.php"]'
+            'li[class*="item"]',  // Try list items first
+            'button[class*="item"]',  // Buttons
+            '[aria-label*="item"]',  // Aria labels
+            '[title]',  // Elements with titles
+            'a[class*="item"]',  // Links
         ];
         
         let allElements = [];
@@ -307,7 +306,12 @@
             const elements = document.querySelectorAll(selector);
             if (elements.length > 0) {
                 console.log(`[Torn Inventory] Selector "${selector}" found ${elements.length} elements`);
-                allElements.push(...elements);
+                // Filter out empty elements
+                const nonEmptyElements = Array.from(elements).filter(el => {
+                    return el.textContent.trim().length > 0 || el.children.length > 0;
+                });
+                console.log(`[Torn Inventory] After filtering empty: ${nonEmptyElements.length} elements`);
+                allElements.push(...nonEmptyElements);
             }
         });
         
