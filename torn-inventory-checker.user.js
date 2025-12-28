@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      4.0
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -14,7 +14,9 @@
 
     const API_KEY_STORAGE = 'torn_api_key';
     const INVENTORY_CACHE = 'torn_inventory_cache';
+    const ITEM_DB_CACHE = 'torn_item_database';
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const DB_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
     // Add styles using standard DOM method
     const styleElement = document.createElement('style');
@@ -132,6 +134,64 @@
             timestamp: Date.now()
         };
         localStorage.setItem(INVENTORY_CACHE, JSON.stringify(data));
+    }
+
+    // Get cached item database
+    function getCachedItemDB() {
+        const cached = localStorage.getItem(ITEM_DB_CACHE);
+        if (!cached) {
+            console.log('[Torn Inventory] getCachedItemDB: No cache found');
+            return null;
+        }
+
+        const data = JSON.parse(cached);
+        if (Date.now() - data.timestamp > DB_CACHE_DURATION) {
+            console.log('[Torn Inventory] getCachedItemDB: Cache expired');
+            return null;
+        }
+        console.log('[Torn Inventory] getCachedItemDB: Using cached database with', Object.keys(data.items).length, 'items');
+        return data.items;
+    }
+
+    // Save item database to cache
+    function saveItemDBCache(items) {
+        console.log('[Torn Inventory] saveItemDBCache: Caching', Object.keys(items).length, 'items');
+        const data = {
+            items: items,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(ITEM_DB_CACHE, JSON.stringify(data));
+    }
+
+    // Fetch item database from Torn API
+    async function fetchItemDatabase(apiKey) {
+        console.log('[Torn Inventory] fetchItemDatabase: Starting API call...');
+        try {
+            const response = await fetch(`https://api.torn.com/torn/?selections=items&key=${apiKey}`);
+            console.log('[Torn Inventory] fetchItemDatabase: Response status:', response.status);
+            const data = await response.json();
+
+            if (data.error) {
+                console.error('[Torn Inventory] Torn API Error:', data.error);
+                return null;
+            }
+
+            if (data.items) {
+                // Create name->ID mapping
+                const nameToId = {};
+                for (const [id, item] of Object.entries(data.items)) {
+                    const itemName = item.name.toLowerCase();
+                    nameToId[itemName] = parseInt(id);
+                }
+                console.log('[Torn Inventory] fetchItemDatabase: Created mapping for', Object.keys(nameToId).length, 'items');
+                return nameToId;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('[Torn Inventory] Error fetching item database:', error);
+            return null;
+        }
     }
 
     // Fetch user inventory from API
@@ -283,9 +343,14 @@
     }
 
     // Mark items as owned
-    function markOwnedItems(inventoryIds) {
+    function markOwnedItems(inventoryIds, itemDatabase) {
         if (!inventoryIds || inventoryIds.length === 0) {
             console.log('[Torn Inventory] markOwnedItems: No inventory items to mark');
+            return;
+        }
+        
+        if (!itemDatabase) {
+            console.log('[Torn Inventory] markOwnedItems: No item database available');
             return;
         }
 
@@ -324,7 +389,7 @@
         let markedCount = 0;
         let debugCount = 0;
         itemElements.forEach(element => {
-            const itemId = extractItemId(element);
+            const itemId = extractItemId(element, itemDatabase);
             
             // Debug: Log first 5 elements to see their structure
             if (debugCount < 5) {
@@ -366,8 +431,22 @@
         console.log('[Torn Inventory] markOwnedItems: Marked', markedCount, 'items as owned');
     }
 
-    // Extract item ID from element (you may need to adjust this based on Torn's actual HTML structure)
-    function extractItemId(element) {
+    // Extract item ID from element using item database
+    function extractItemId(element, itemDatabase) {
+        // Try aria-label first (for buttons like "View info for item eCPU" or "Buy item eCPU, $290...")
+        const ariaLabel = element.getAttribute('aria-label');
+        if (ariaLabel && itemDatabase) {
+            // Match patterns like "View info for item NAME" or "Buy item NAME, $..."
+            const match = ariaLabel.match(/(?:View info for item|Buy item)\s+([^,]+)/i);
+            if (match) {
+                const itemName = match[1].trim().toLowerCase();
+                const itemId = itemDatabase[itemName];
+                if (itemId) {
+                    return itemId;
+                }
+            }
+        }
+        
         // Try to find item ID in data attributes
         if (element.dataset && element.dataset.item) {
             return parseInt(element.dataset.item);
@@ -418,12 +497,22 @@
             }
         }
 
-        if (inventory) {
-            markOwnedItems(inventory);
+        // Try to use cached item database
+        let itemDatabase = getCachedItemDB();
+        
+        if (!itemDatabase) {
+            itemDatabase = await fetchItemDatabase(apiKey);
+            if (itemDatabase) {
+                saveItemDBCache(itemDatabase);
+            }
+        }
+
+        if (inventory && itemDatabase) {
+            markOwnedItems(inventory, itemDatabase);
             
             // Set up observer to mark items when page content changes
             const observer = new MutationObserver(() => {
-                markOwnedItems(inventory);
+                markOwnedItems(inventory, itemDatabase);
             });
 
             observer.observe(document.body, {
