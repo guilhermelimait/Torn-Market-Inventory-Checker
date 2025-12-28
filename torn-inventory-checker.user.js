@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      7.1
+// @version      7.2
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -342,18 +342,18 @@
             let lowestBazaar = null;
 
             // Get lowest Item Market price
-            if (marketData.itemmarket && !marketData.error) {
-                const listings = Object.values(marketData.itemmarket);
+            if (marketData.itemmarket && marketData.itemmarket.listings && !marketData.error) {
+                const listings = marketData.itemmarket.listings;
                 if (listings.length > 0) {
-                    lowestMarket = Math.min(...listings.map(l => l.cost));
+                    lowestMarket = Math.min(...listings.map(l => l.price));
                 }
             }
 
             // Get lowest Bazaar price
-            if (bazaarData.bazaar && !bazaarData.error) {
-                const listings = Object.values(bazaarData.bazaar);
+            if (bazaarData.bazaar && Array.isArray(bazaarData.bazaar) && !bazaarData.error) {
+                const listings = bazaarData.bazaar;
                 if (listings.length > 0) {
-                    lowestBazaar = Math.min(...listings.map(l => l.cost));
+                    lowestBazaar = Math.min(...listings.map(l => l.price));
                 }
             }
 
