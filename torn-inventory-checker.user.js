@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
-// @grant        GM_addStyle
-// @grant        unsafeWindow
+// @grant        none
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -38,8 +37,9 @@
     const INVENTORY_CACHE = 'torn_inventory_cache';
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-    // Add styles
-    GM_addStyle(`
+    // Add styles using standard DOM method
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
         .torn-api-bar {
             position: fixed;
             top: 0;
@@ -99,7 +99,8 @@
         .item-owned {
             background: rgba(76, 175, 80, 0.1) !important;
         }
-    `);
+    `;
+    document.head.appendChild(styleElement);
 
     // Get stored API key
     function getApiKey() {
