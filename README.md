@@ -2,6 +2,8 @@
 
 Automatically checkmark items you own in Torn.com market so you don't buy duplicates.
 
+update 1
+
 ## Installation
 
 1. **Install Tampermonkey**
