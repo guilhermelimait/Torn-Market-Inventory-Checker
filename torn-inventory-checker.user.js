@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -210,12 +210,15 @@
         `;
 
         document.body.insertBefore(bar, document.body.firstChild);
+        // Push page content down to avoid overlap
+        document.body.style.paddingTop = '90px';
 
         document.getElementById('torn-api-save').addEventListener('click', async () => {
             const apiKey = document.getElementById('torn-api-input').value.trim();
             if (apiKey) {
                 saveApiKey(apiKey);
                 bar.remove();
+                document.body.style.paddingTop = '0';
                 alert('API key saved! Refreshing inventory...');
                 await loadInventoryAndMark();
             }
@@ -223,6 +226,7 @@
 
         document.getElementById('torn-api-close').addEventListener('click', () => {
             bar.remove();
+            document.body.style.paddingTop = '0';
         });
 
         // Enter key to save
