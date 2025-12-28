@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.5
+// @version      6.6
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -517,6 +517,10 @@
         }
         
         console.log('[Torn Shopping] Item database loaded:', Object.keys(itemDatabase).length, 'items');
+        
+        // Log a sample item to see structure
+        const sampleId = Object.keys(itemDatabase)[0];
+        console.log('[Torn Shopping] Sample item:', sampleId, itemDatabase[sampleId]);
 
         let selectedIndex = -1;
         let matchingItems = [];
@@ -533,7 +537,12 @@
 
             // Find matching items
             matchingItems = [];
+            let checkedCount = 0;
             for (const [id, item] of Object.entries(itemDatabase)) {
+                checkedCount++;
+                if (checkedCount <= 3) {
+                    console.log('[Torn Shopping] Checking item', id, ':', item);
+                }
                 if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
                     matchingItems.push({ id: parseInt(id), name: item.name });
                     if (matchingItems.length >= 15) break; // Limit to 15 results
