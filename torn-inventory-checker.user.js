@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.3
+// @version      6.4
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -81,6 +81,7 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            position: relative;
         }
         .torn-shopping-add input {
             flex: 1;
@@ -92,6 +93,41 @@
         .torn-shopping-add input:focus {
             outline: none;
             border-color: #1e3a8a;
+        }
+        .torn-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 120px;
+            background: white;
+            border: 2px solid #1e3a8a;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .torn-autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background 0.2s;
+        }
+        .torn-autocomplete-item:hover {
+            background: #f3f4f6;
+        }
+        .torn-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .torn-autocomplete-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .torn-autocomplete-id {
+            font-size: 12px;
+            color: #6b7280;
+            margin-left: 5px;
         }
         .torn-shopping-add button {
             padding: 10px 20px;
@@ -422,7 +458,8 @@
             </div>
             <div class="torn-shopping-content">
                 <div class="torn-shopping-add">
-                    <input type="text" id="item-search" placeholder="Search for item by name..." />
+                    <input type="text" id="item-search" placeholder="Type item name (e.g. 'CPU', 'xanax', 'blood bag')..." autocomplete="off" />
+                    <div id="item-autocomplete" class="torn-autocomplete" style="display: none;"></div>
                     <button id="add-item-btn">Add to List</button>
                 </div>
                 <ul class="torn-shopping-list" id="shopping-list-items"></ul>
@@ -445,6 +482,9 @@
         // Render shopping list
         renderShoppingList();
 
+        // Setup autocomplete
+        setupAutocomplete();
+
         // Add item handler
         document.getElementById('add-item-btn').addEventListener('click', async () => {
             await addItemToList();
@@ -457,40 +497,165 @@
         });
     }
 
-    async function addItemToList() {
+    async function setupAutocomplete() {
         const searchInput = document.getElementById('item-search');
-        const searchTerm = searchInput.value.trim().toLowerCase();
+        const autocompleteDiv = document.getElementById('item-autocomplete');
         
-        if (!searchTerm) return;
-
         const apiKey = getApiKey();
-        if (!apiKey) {
-            alert('Please set your API key first!');
-            return;
-        }
+        if (!apiKey) return;
 
         const itemDatabase = getCachedItemDB() || await fetchItemDatabase(apiKey);
-        if (!itemDatabase) {
-            alert('Failed to load item database');
-            return;
-        }
+        if (!itemDatabase) return;
 
-        // Search for item by name
+        let selectedIndex = -1;
+        let matchingItems = [];
+
+        searchInput.addEventListener('input', () => {
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            
+            if (searchTerm.length < 2) {
+                autocompleteDiv.style.display = 'none';
+                return;
+            }
+
+            // Find matching items
+            matchingItems = [];
+            for (const [id, item] of Object.entries(itemDatabase)) {
+                if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
+                    matchingItems.push({ id: parseInt(id), name: item.name });
+                    if (matchingItems.length >= 15) break; // Limit to 15 results
+                }
+            }
+
+            if (matchingItems.length === 0) {
+                autocompleteDiv.style.display = 'none';
+                return;
+            }
+
+            // Render autocomplete items
+            autocompleteDiv.innerHTML = matchingItems.map((item, index) => `
+                <div class="torn-autocomplete-item" data-index="${index}" data-id="${item.id}" data-name="${item.name}">
+                    <span class="torn-autocomplete-name">${item.name}</span>
+                    <span class="torn-autocomplete-id">#${item.id}</span>
+                </div>
+            `).join('');
+
+            autocompleteDiv.style.display = 'block';
+            selectedIndex = -1;
+
+            // Add click handlers
+            autocompleteDiv.querySelectorAll('.torn-autocomplete-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    searchInput.value = el.dataset.name;
+                    searchInput.dataset.selectedId = el.dataset.id;
+                    searchInput.dataset.selectedName = el.dataset.name;
+                    autocompleteDiv.style.display = 'none';
+                });
+            });
+        });
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', (e) => {
+            const items = autocompleteDiv.querySelectorAll('.torn-autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection(items, selectedIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(items, selectedIndex);
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                items[selectedIndex].click();
+            } else if (e.key === 'Escape') {
+                autocompleteDiv.style.display = 'none';
+            }
+        });
+
+        // Close autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !autocompleteDiv.contains(e.target)) {
+                autocompleteDiv.style.display = 'none';
+            }
+        });
+
+        function updateSelection(items, index) {
+            items.forEach((item, i) => {
+                if (i === index) {
+                    item.style.background = '#e0e7ff';
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.style.background = '';
+                }
+            });
+        }
+    }
+
+    async function addItemToList() {
+        const searchInput = document.getElementById('item-search');
+        const autocompleteDiv = document.getElementById('item-autocomplete');
+        
+        // Check if item was selected from autocomplete
         let foundItemId = null;
         let foundItemName = null;
+        
+        if (searchInput.dataset.selectedId) {
+            foundItemId = parseInt(searchInput.dataset.selectedId);
+            foundItemName = searchInput.dataset.selectedName;
+            
+            // Clear selection data
+            delete searchInput.dataset.selectedId;
+            delete searchInput.dataset.selectedName;
+        } else {
+            // Fallback to search
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            
+            if (!searchTerm) return;
 
-        for (const [id, item] of Object.entries(itemDatabase)) {
-            if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
-                foundItemId = parseInt(id);
-                foundItemName = item.name;
-                break;
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                alert('Please set your API key first!');
+                return;
+            }
+
+            const itemDatabase = getCachedItemDB() || await fetchItemDatabase(apiKey);
+            if (!itemDatabase) {
+                alert('Failed to load item database');
+                return;
+            }
+
+            // Search for exact match first, then partial
+            for (const [id, item] of Object.entries(itemDatabase)) {
+                if (item && item.name) {
+                    if (item.name.toLowerCase() === searchTerm) {
+                        foundItemId = parseInt(id);
+                        foundItemName = item.name;
+                        break;
+                    }
+                }
+            }
+            
+            // If no exact match, try partial
+            if (!foundItemId) {
+                for (const [id, item] of Object.entries(itemDatabase)) {
+                    if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
+                        foundItemId = parseInt(id);
+                        foundItemName = item.name;
+                        break;
+                    }
+                }
+            }
+
+            if (!foundItemId) {
+                alert(`Item "${searchTerm}" not found. Try typing at least 2 characters to see suggestions.`);
+                return;
             }
         }
 
-        if (!foundItemId) {
-            alert(`Item "${searchTerm}" not found`);
-            return;
-        }
+        const apiKey = getApiKey();
+        if (!apiKey) return;
 
         const shoppingList = getShoppingList();
         
@@ -509,6 +674,7 @@
 
         saveShoppingList(shoppingList);
         searchInput.value = '';
+        autocompleteDiv.style.display = 'none';
         
         // Fetch initial price
         const prices = await fetchItemPrice(foundItemId, apiKey);
