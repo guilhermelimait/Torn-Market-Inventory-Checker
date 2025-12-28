@@ -1,24 +1,38 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Checkmark items you own in Torn.com market
 // @author       You
-// @match        https://www.torn.com/*
-// @match        https://*.torn.com/*
+// @match        *://www.torn.com/*
 // @grant        GM_addStyle
-// @run-at       document-start
+// @grant        unsafeWindow
+// @run-at       document-idle
 // ==/UserScript==
-
-alert('TORN INVENTORY SCRIPT IS RUNNING!');
-console.log('[Torn Inventory] ===== SCRIPT FILE LOADED BY TAMPERMONKEY =====');
 
 (function() {
     'use strict';
-
-    console.log('[Torn Inventory] Script executing!');
-    console.log('[Torn Inventory] URL:', window.location.href);
-    console.log('[Torn Inventory] Document state:', document.readyState);
+    
+    // Create a VERY visible test box
+    const testBox = document.createElement('div');
+    testBox.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: lime;
+        color: black;
+        padding: 30px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 5px solid darkgreen;
+        z-index: 999999;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    `;
+    testBox.textContent = 'TORN INVENTORY SCRIPT IS WORKING!';
+    document.body.appendChild(testBox);
+    
+    console.log('[Torn Inventory] ===== SCRIPT IS RUNNING =====');
 
     const API_KEY_STORAGE = 'torn_api_key';
     const INVENTORY_CACHE = 'torn_inventory_cache';
