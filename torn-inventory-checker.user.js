@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      4.4
+// @version      4.5
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -222,13 +222,18 @@
 
             const itemIds = new Set();
             if (data.inventory) {
+                console.log('[Torn Inventory] Raw inventory data:', data.inventory);
                 for (const item of data.inventory) {
-                    itemIds.add(item.ID);
+                    if (item.ID) {
+                        itemIds.add(item.ID);
+                    } else {
+                        console.log('[Torn Inventory] Skipping item with no ID:', item);
+                    }
                 }
             }
 
             const result = Array.from(itemIds);
-            console.log('[Torn Inventory] fetchInventory: Found', result.length, 'unique items');
+            console.log('[Torn Inventory] fetchInventory: Found', result.length, 'unique items:', result);
             return result;
         } catch (error) {
             console.error('[Torn Inventory] Error fetching inventory:', error);
