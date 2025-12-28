@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      4.5
+// @version      5.0
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -209,7 +209,8 @@
     async function fetchInventory(apiKey) {
         console.log('[Torn Inventory] fetchInventory: Starting API call...');
         try {
-            const response = await fetch(`https://api.torn.com/user/?selections=inventory&key=${apiKey}`);
+            // Use display case API instead of inventory (which was deprecated)
+            const response = await fetch(`https://api.torn.com/user/?selections=display&key=${apiKey}`);
             console.log('[Torn Inventory] fetchInventory: Response status:', response.status);
             const data = await response.json();
             console.log('[Torn Inventory] fetchInventory: Data received:', data);
@@ -221,19 +222,29 @@
             }
 
             const itemIds = new Set();
-            if (data.inventory) {
-                console.log('[Torn Inventory] Raw inventory data:', data.inventory);
-                for (const item of data.inventory) {
+            
+            // Check display case items
+            if (data.display && Array.isArray(data.display)) {
+                console.log('[Torn Inventory] Display case data:', data.display);
+                for (const item of data.display) {
                     if (item.ID) {
                         itemIds.add(item.ID);
-                    } else {
-                        console.log('[Torn Inventory] Skipping item with no ID:', item);
                     }
                 }
+            } else if (typeof data.display === 'string') {
+                // API returned error message as string
+                console.error('[Torn Inventory] API selection unavailable:', data.display);
+                alert('Torn API Error: ' + data.display + '\n\nThis script may no longer work as Torn has changed their API.');
+                return null;
             }
 
             const result = Array.from(itemIds);
-            console.log('[Torn Inventory] fetchInventory: Found', result.length, 'unique items:', result);
+            console.log('[Torn Inventory] fetchInventory: Found', result.length, 'items in display case:', result);
+            
+            if (result.length === 0) {
+                console.log('[Torn Inventory] No items found. Note: This script can only detect items in your Display Case, not your full inventory.');
+            }
+            
             return result;
         } catch (error) {
             console.error('[Torn Inventory] Error fetching inventory:', error);
