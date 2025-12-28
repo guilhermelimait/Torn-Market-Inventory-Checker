@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.7
+// @version      2.8
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -237,8 +237,8 @@
         const settingsItem = document.createElement('li');
         settingsItem.id = 'torn-inventory-settings';
         settingsItem.innerHTML = `
-            <a class="desaturate" title="Inventory Checker Settings">
-                <span>⚙️ Inventory API</span>
+            <a class="desaturate" title="Manage API key for Torn Market Inventory Checker">
+                <span>Torn Market Inventory Checker</span>
             </a>
         `;
         
