@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.3
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -292,13 +292,9 @@
         console.log('[Torn Inventory] markOwnedItems: Checking page elements for', inventoryIds.length, 'owned items');
         console.log('[Torn Inventory] Current page URL:', window.location.href);
         
-        // Market pages - try multiple selectors
+        // Market pages - focus on actual market items
         const selectors = [
-            'li[class*="item"]',  // Try list items first
-            'button[class*="item"]',  // Buttons
-            '[aria-label*="item"]',  // Aria labels
-            '[title]',  // Elements with titles
-            'a[class*="item"]',  // Links
+            '[aria-label*="item"]',  // Aria labels - likely the real items!
         ];
         
         let allElements = [];
@@ -306,11 +302,17 @@
             const elements = document.querySelectorAll(selector);
             if (elements.length > 0) {
                 console.log(`[Torn Inventory] Selector "${selector}" found ${elements.length} elements`);
-                // Filter out empty elements
+                // Filter out empty elements AND navigation items
                 const nonEmptyElements = Array.from(elements).filter(el => {
+                    // Exclude menu items and navigation
+                    if (el.classList.contains('menu-item-link') || 
+                        el.closest('.menu') || 
+                        el.closest('[class*="nav"]')) {
+                        return false;
+                    }
                     return el.textContent.trim().length > 0 || el.children.length > 0;
                 });
-                console.log(`[Torn Inventory] After filtering empty: ${nonEmptyElements.length} elements`);
+                console.log(`[Torn Inventory] After filtering: ${nonEmptyElements.length} elements`);
                 allElements.push(...nonEmptyElements);
             }
         });
@@ -324,17 +326,18 @@
         itemElements.forEach(element => {
             const itemId = extractItemId(element);
             
-            // Debug: Log first 3 elements to see their structure
-            if (debugCount < 3 && !itemId) {
+            // Debug: Log first 5 elements to see their structure
+            if (debugCount < 5) {
                 const attrs = {};
                 for (let attr of element.attributes) {
                     attrs[attr.name] = attr.value;
                 }
-                console.log('[Torn Inventory] DEBUG - Element without ID:', {
+                console.log('[Torn Inventory] DEBUG - Element' + (itemId ? ' WITH ID ' + itemId : ' without ID') + ':', {
                     tag: element.tagName,
                     id: element.id,
                     classes: element.className,
                     attributes: attrs,
+                    ariaLabel: element.getAttribute('aria-label'),
                     datasetKeys: Object.keys(element.dataset),
                     children: element.children.length,
                     textContent: element.textContent.substring(0, 100),
