@@ -273,9 +273,9 @@
     function init() {
         const apiKey = getApiKey();
 
-        if (!apiKey && window.location.pathname === '/') {
-            // First time on homepage - show API bar
-            setTimeout(() => showApiBar(), 1000);
+        // Show API bar if no key is stored
+        if (!apiKey) {
+            setTimeout(() => showApiBar(), 500);
         }
 
         // Always add settings button
