@@ -4,12 +4,14 @@ A Tampermonkey userscript that helps you track items you want to buy on Torn.com
 
 ## Features
 
-- 🛒 **Shopping List**: Add items you want to buy
-- 📉 **Price Tracking**: Monitors both Item Market and Bazaar prices
-- 🔔 **Price Drop Alerts**: Get notifications when prices drop
-- 📊 **Price History**: Tracks lowest prices seen for each item
+- 🛒 **Shopping List**: Add items you want to buy with smart autocomplete search
+- 📉 **Price Tracking**: Monitors both Item Market and Bazaar prices in real-time
+- 🔔 **Price Drop Alerts**: Get instant notifications when prices hit new lows
+- 📊 **Price History**: Tracks lowest prices seen for each item over time
 - 🔄 **Auto-Refresh**: Checks prices every 5 minutes automatically
 - 💰 **Best Deal Finder**: Shows the lowest price between Item Market and Bazaar
+- ⌨️ **Autocomplete Search**: Type 2+ characters to see matching items with keyboard navigation
+- 🎯 **Live Price Display**: Shows current prices with "LOWEST!" badge for record lows
 
 ## Installation
 
@@ -44,9 +46,17 @@ Done! The script is installed.
 ### Adding Items to Your Shopping List
 
 1. Click **"🛒 Shopping List & Alerts"** in the left sidebar
-2. Search for an item by name (e.g., "xanax", "blood bag", "ecstasy")
-3. Click "Add to List"
-4. Prices will be fetched automatically from both Item Market and Bazaar
+2. Start typing an item name (e.g., "xan", "blood", "cpu")
+3. **Autocomplete dropdown** appears after 2+ characters with matching items
+4. Use **arrow keys** to navigate, **Enter** to select, or **click** an item
+5. Click "Add to List" or press Enter
+6. Prices will be fetched automatically from both Item Market and Bazaar
+
+**Autocomplete Features:**
+- Shows up to 15 matching items
+- Displays item name and ID
+- Keyboard navigation (↑↓ arrows, Enter, Escape)
+- Click to select
 
 ### Managing Your List
 
@@ -76,6 +86,7 @@ Item Market: $2,500 (-15.2%)
 Your API key needs minimal permissions:
 - **Read access only** to fetch public item data and market prices
 - No special permissions required
+- **Compatible with Torn API v2** (automatically uses correct endpoints)
 
 ## Settings
 
@@ -145,7 +156,10 @@ const DB_CACHE_DURATION = 24 * 60 * 60 * 1000; // Item database cache: 24 hours
 
 ## Version History
 
-- **v6.0** (Current): Complete rewrite - Shopping list with automatic price drop alerts
+- **v7.2** (Current): Fixed API v2 data structure compatibility
+- **v7.1**: Migrated to Torn API v2 endpoints for market/bazaar data
+- **v6.8**: Added autocomplete search with keyboard navigation
+- **v6.0**: Complete rewrite - Shopping list with automatic price drop alerts
 - v5.0: Inventory checker (deprecated due to Torn API changes)
 
 ## Support

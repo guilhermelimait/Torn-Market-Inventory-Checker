@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Torn Market Shopping List & Price Alert
+// @name         Torn Shopping List & Price Tracker
 // @namespace    http://tampermonkey.net/
 // @version      7.2
-// @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
-// @author       You
+// @description  Track item prices with smart autocomplete, get instant alerts on new price lows for Torn.com Item Market & Bazaar
+// @author       guilhermelimait
 // @match        *://www.torn.com/*
 // @grant        none
 // @run-at       document-idle
