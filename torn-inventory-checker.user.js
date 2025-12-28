@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.2
+// @version      6.3
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -480,7 +480,7 @@
         let foundItemName = null;
 
         for (const [id, item] of Object.entries(itemDatabase)) {
-            if (item.name.toLowerCase().includes(searchTerm)) {
+            if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
                 foundItemId = parseInt(id);
                 foundItemName = item.name;
                 break;
