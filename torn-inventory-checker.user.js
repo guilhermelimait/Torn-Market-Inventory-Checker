@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -206,8 +206,8 @@
 
         document.body.insertBefore(bar, document.body.firstChild);
         // Push page content down to avoid overlap
-        document.body.style.paddingTop = '90px';
-45
+        document.body.style.paddingTop = '45px';
+
         document.getElementById('torn-api-save').addEventListener('click', async () => {
             const apiKey = document.getElementById('torn-api-input').value.trim();
             if (apiKey) {
