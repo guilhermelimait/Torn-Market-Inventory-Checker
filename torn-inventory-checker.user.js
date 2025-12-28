@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.6
+// @version      6.7
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -396,7 +396,7 @@
             const prices = await fetchItemPrice(item.id, apiKey);
             if (!prices) continue;
 
-            const itemName = itemDatabase[item.id]?.name || `Item ${item.id}`;
+            const itemName = itemDatabase[item.id] || `Item ${item.id}`;
             
             // Initialize price history for this item if it doesn't exist
             if (!priceHistory[item.id]) {
@@ -538,13 +538,14 @@
             // Find matching items
             matchingItems = [];
             let checkedCount = 0;
-            for (const [id, item] of Object.entries(itemDatabase)) {
+            for (const [itemName, itemId] of Object.entries(itemDatabase)) {
                 checkedCount++;
                 if (checkedCount <= 3) {
-                    console.log('[Torn Shopping] Checking item', id, ':', item);
+                    console.log('[Torn Shopping] Checking item', itemName, ':', itemId);
                 }
-                if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
-                    matchingItems.push({ id: parseInt(id), name: item.name });
+                // itemDatabase has name as key, ID as value
+                if (itemName && itemName.toLowerCase().includes(searchTerm)) {
+                    matchingItems.push({ id: itemId, name: itemName });
                     if (matchingItems.length >= 15) break; // Limit to 15 results
                 }
             }
@@ -653,22 +654,20 @@
             }
 
             // Search for exact match first, then partial
-            for (const [id, item] of Object.entries(itemDatabase)) {
-                if (item && item.name) {
-                    if (item.name.toLowerCase() === searchTerm) {
-                        foundItemId = parseInt(id);
-                        foundItemName = item.name;
-                        break;
-                    }
+            for (const [itemName, itemId] of Object.entries(itemDatabase)) {
+                if (itemName && itemName.toLowerCase() === searchTerm) {
+                    foundItemId = itemId;
+                    foundItemName = itemName;
+                    break;
                 }
             }
             
             // If no exact match, try partial
             if (!foundItemId) {
-                for (const [id, item] of Object.entries(itemDatabase)) {
-                    if (item && item.name && item.name.toLowerCase().includes(searchTerm)) {
-                        foundItemId = parseInt(id);
-                        foundItemName = item.name;
+                for (const [itemName, itemId] of Object.entries(itemDatabase)) {
+                    if (itemName && itemName.toLowerCase().includes(searchTerm)) {
+                        foundItemId = itemId;
+                        foundItemName = itemName;
                         break;
                     }
                 }
