@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.7
+// @version      6.8
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -501,34 +501,17 @@
         const searchInput = document.getElementById('item-search');
         const autocompleteDiv = document.getElementById('item-autocomplete');
         
-        console.log('[Torn Shopping] Setting up autocomplete...');
-        
         const apiKey = getApiKey();
-        if (!apiKey) {
-            console.error('[Torn Shopping] No API key for autocomplete');
-            return;
-        }
+        if (!apiKey) return;
 
-        console.log('[Torn Shopping] Fetching item database...');
         const itemDatabase = getCachedItemDB() || await fetchItemDatabase(apiKey);
-        if (!itemDatabase) {
-            console.error('[Torn Shopping] Failed to load item database');
-            return;
-        }
-        
-        console.log('[Torn Shopping] Item database loaded:', Object.keys(itemDatabase).length, 'items');
-        
-        // Log a sample item to see structure
-        const sampleId = Object.keys(itemDatabase)[0];
-        console.log('[Torn Shopping] Sample item:', sampleId, itemDatabase[sampleId]);
+        if (!itemDatabase) return;
 
         let selectedIndex = -1;
         let matchingItems = [];
 
         searchInput.addEventListener('input', () => {
             const searchTerm = searchInput.value.trim().toLowerCase();
-            
-            console.log('[Torn Shopping] Search term:', searchTerm);
             
             if (searchTerm.length < 2) {
                 autocompleteDiv.style.display = 'none';
@@ -537,20 +520,12 @@
 
             // Find matching items
             matchingItems = [];
-            let checkedCount = 0;
             for (const [itemName, itemId] of Object.entries(itemDatabase)) {
-                checkedCount++;
-                if (checkedCount <= 3) {
-                    console.log('[Torn Shopping] Checking item', itemName, ':', itemId);
-                }
-                // itemDatabase has name as key, ID as value
                 if (itemName && itemName.toLowerCase().includes(searchTerm)) {
                     matchingItems.push({ id: itemId, name: itemName });
                     if (matchingItems.length >= 15) break; // Limit to 15 results
                 }
             }
-
-            console.log('[Torn Shopping] Found', matchingItems.length, 'matching items');
 
             if (matchingItems.length === 0) {
                 autocompleteDiv.style.display = 'none';
@@ -566,7 +541,6 @@
             `).join('');
 
             autocompleteDiv.style.display = 'block';
-            console.log('[Torn Shopping] Showing autocomplete with', matchingItems.length, 'items');
             selectedIndex = -1;
 
             // Add click handlers
@@ -576,7 +550,6 @@
                     searchInput.dataset.selectedId = el.dataset.id;
                     searchInput.dataset.selectedName = el.dataset.name;
                     autocompleteDiv.style.display = 'none';
-                    console.log('[Torn Shopping] Selected:', el.dataset.name);
                 });
             });
         });
@@ -813,12 +786,25 @@
                         <div class="torn-shopping-item-prices">${priceDisplay}</div>
                     </div>
                     <div class="torn-shopping-item-actions">
-                        <button onclick="window.tornShoppingRefresh(${item.id})" data-item-id="${item.id}">🔄</button>
-                        <button class="btn-remove" onclick="window.tornShoppingRemove(${item.id})">🗑️</button>
+                        <button class="btn-refresh" data-item-id="${item.id}">🔄</button>
+                        <button class="btn-remove" data-item-id="${item.id}">🗑️</button>
                     </div>
                 </li>
             `;
         }).join('');
+        
+        // Add event listeners for buttons
+        listContainer.querySelectorAll('.btn-refresh').forEach(btn => {
+            btn.addEventListener('click', () => {
+                refreshItemPrice(parseInt(btn.dataset.itemId));
+            });
+        });
+        
+        listContainer.querySelectorAll('.btn-remove').forEach(btn => {
+            btn.addEventListener('click', () => {
+                removeItemFromList(parseInt(btn.dataset.itemId));
+            });
+        });
     }
 
     // Add sidebar button
@@ -978,10 +964,6 @@
     // Initialize
     async function init() {
         console.log('[Torn Shopping] Initializing...');
-        
-        // Make functions globally accessible for onclick handlers
-        window.tornShoppingRemove = removeItemFromList;
-        window.tornShoppingRefresh = refreshItemPrice;
         
         // Add sidebar button
         addSidebarButton();
