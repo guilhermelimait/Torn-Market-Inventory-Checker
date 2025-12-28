@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -322,12 +322,18 @@
             
             // Debug: Log first 3 elements to see their structure
             if (debugCount < 3 && !itemId) {
+                const attrs = {};
+                for (let attr of element.attributes) {
+                    attrs[attr.name] = attr.value;
+                }
                 console.log('[Torn Inventory] DEBUG - Element without ID:', {
                     tag: element.tagName,
                     id: element.id,
                     classes: element.className,
-                    dataset: element.dataset,
-                    innerHTML: element.innerHTML.substring(0, 200),
+                    attributes: attrs,
+                    datasetKeys: Object.keys(element.dataset),
+                    children: element.children.length,
+                    textContent: element.textContent.substring(0, 100),
                     element: element
                 });
                 debugCount++;
