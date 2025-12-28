@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      2.0
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -11,27 +11,6 @@
 
 (function() {
     'use strict';
-    
-    // Create a VERY visible test box
-    const testBox = document.createElement('div');
-    testBox.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: lime;
-        color: black;
-        padding: 30px;
-        font-size: 24px;
-        font-weight: bold;
-        border: 5px solid darkgreen;
-        z-index: 999999;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    `;
-    testBox.textContent = 'TORN INVENTORY SCRIPT IS WORKING!';
-    document.body.appendChild(testBox);
-    
-    console.log('[Torn Inventory] ===== SCRIPT IS RUNNING =====');
 
     const API_KEY_STORAGE = 'torn_api_key';
     const INVENTORY_CACHE = 'torn_inventory_cache';
