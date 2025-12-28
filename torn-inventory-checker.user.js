@@ -1,14 +1,16 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        https://www.torn.com/*
+// @match        https://*.torn.com/*
 // @grant        GM_addStyle
-// @run-at       document-end
+// @run-at       document-start
 // ==/UserScript==
 
+alert('TORN INVENTORY SCRIPT IS RUNNING!');
 console.log('[Torn Inventory] ===== SCRIPT FILE LOADED BY TAMPERMONKEY =====');
 
 (function() {
