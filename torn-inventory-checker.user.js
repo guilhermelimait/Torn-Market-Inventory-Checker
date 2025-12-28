@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -251,23 +251,48 @@
         }
 
         console.log('[Torn Inventory] markOwnedItems: Checking page elements for', inventoryIds.length, 'owned items');
-        // Market pages
-        const itemElements = document.querySelectorAll('[class*="item"]');
-        console.log('[Torn Inventory] markOwnedItems: Found', itemElements.length, 'potential item elements');
+        console.log('[Torn Inventory] Current page URL:', window.location.href);
+        
+        // Market pages - try multiple selectors
+        const selectors = [
+            '[class*="item"]',
+            '[class*="market"]',
+            'li[class*="item"]',
+            'div[class*="item"]',
+            '[data-item]',
+            'a[href*="item.php"]'
+        ];
+        
+        let allElements = [];
+        selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            if (elements.length > 0) {
+                console.log(`[Torn Inventory] Selector "${selector}" found ${elements.length} elements`);
+                allElements.push(...elements);
+            }
+        });
+        
+        // Remove duplicates
+        const itemElements = [...new Set(allElements)];
+        console.log('[Torn Inventory] markOwnedItems: Total unique elements:', itemElements.length);
         
         let markedCount = 0;
         itemElements.forEach(element => {
             const itemId = extractItemId(element);
-            if (itemId && inventoryIds.includes(itemId)) {
-                if (!element.querySelector('.owned-item-check')) {
-                    const checkmark = document.createElement('span');
-                    checkmark.className = 'owned-item-check';
-                    checkmark.textContent = '✓ OWNED';
-                    checkmark.title = 'You already own this item';
-                    element.classList.add('item-owned');
-                    element.appendChild(checkmark);
-                    markedCount++;
-                    console.log('[Torn Inventory] Marked item ID:', itemId, 'as owned');
+            if (itemId) {
+                console.log('[Torn Inventory] Found item ID:', itemId, 'in element:', element);
+                if (inventoryIds.includes(itemId)) {
+                    console.log('[Torn Inventory] Item', itemId, 'is OWNED!');
+                    if (!element.querySelector('.owned-item-check')) {
+                        const checkmark = document.createElement('span');
+                        checkmark.className = 'owned-item-check';
+                        checkmark.textContent = '✓ OWNED';
+                        checkmark.title = 'You already own this item';
+                        element.classList.add('item-owned');
+                        element.appendChild(checkmark);
+                        markedCount++;
+                        console.log('[Torn Inventory] Successfully marked item ID:', itemId);
+                    }
                 }
             }
         });
@@ -299,6 +324,12 @@
         const link = element.querySelector('a[href*="item.php"]');
         if (link) {
             const match = link.href.match(/[?&]ID=(\d+)/);
+            if (match) return parseInt(match[1]);
+        }
+        
+        // Try to find in href if element itself is a link
+        if (element.href && element.href.includes('item.php')) {
+            const match = element.href.match(/[?&]ID=(\d+)/);
             if (match) return parseInt(match[1]);
         }
 
