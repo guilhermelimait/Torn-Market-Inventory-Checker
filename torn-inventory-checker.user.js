@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -25,11 +25,11 @@
             left: 0;
             right: 0;
             background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
-            padding: 20px 30px;
+            padding: 10px 20px;
             z-index: 99999;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            border-bottom: 3px solid rgba(255,255,255,0.1);
+            border-bottom: 2px solid rgba(255,255,255,0.1);
         }
         .torn-api-bar-content {
             max-width: 1400px;
@@ -37,48 +37,44 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 16px;
+            gap: 10px;
             flex-wrap: wrap;
         }
         .torn-api-bar-text {
             color: #ffffff;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 600;
             margin: 0;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            letter-spacing: 0.3px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
         .torn-api-bar input {
-            padding: 12px 18px;
-            border: 2px solid rgba(255,255,255,0.4);
-            border-radius: 10px;
-            width: 380px;
-            font-size: 15px;
+            padding: 8px 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            width: 280px;
+            font-size: 13px;
             background: white;
             transition: all 0.2s;
             outline: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .torn-api-bar input:focus {
             border-color: #60a5fa;
-            box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2), 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
         }
         .torn-api-bar button {
-            padding: 12px 28px;
+            padding: 8px 16px;
             background: white;
             color: #1e3a8a;
             border: none;
-            border-radius: 10px;
+            border-radius: 6px;
             cursor: pointer;
-            font-weight: 700;
-            font-size: 15px;
+            font-weight: 600;
+            font-size: 13px;
             transition: all 0.2s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         .torn-api-bar button:hover {
             background: #f0f9ff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            transform: translateY(-1px);
         }
         .torn-api-bar .close-btn {
             background: #dc2626;
@@ -89,25 +85,24 @@
         }
         .torn-api-settings {
             position: fixed;
-            top: 70px;
-            right: 20px;
+            top: 45px;
+            right: 15px;
             background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
             color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
+            padding: 8px 14px;
+            border-radius: 6px;
             cursor: pointer;
             z-index: 9999;
-            font-size: 14px;
-            font-weight: 700;
-            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.5);
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
             transition: all 0.2s;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            border: 2px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         .torn-api-settings:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(30, 58, 138, 0.6);
-            border-color: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.5);
         }
         .owned-item-check {
             color: #4CAF50;
@@ -212,7 +207,7 @@
         document.body.insertBefore(bar, document.body.firstChild);
         // Push page content down to avoid overlap
         document.body.style.paddingTop = '90px';
-
+45
         document.getElementById('torn-api-save').addEventListener('click', async () => {
             const apiKey = document.getElementById('torn-api-input').value.trim();
             if (apiKey) {
