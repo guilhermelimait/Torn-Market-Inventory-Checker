@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -24,51 +24,84 @@
             top: 0;
             left: 0;
             right: 0;
-            background: #ffd700;
-            padding: 10px;
-            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 16px 20px;
             z-index: 99999;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .torn-api-bar-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .torn-api-bar-text {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0;
         }
         .torn-api-bar input {
-            padding: 5px 10px;
-            margin: 0 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            width: 300px;
+            padding: 10px 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            width: 320px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.95);
+            transition: all 0.2s;
+            outline: none;
+        }
+        .torn-api-bar input:focus {
+            border-color: rgba(255,255,255,0.8);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
         }
         .torn-api-bar button {
-            padding: 5px 15px;
-            background: #4CAF50;
-            color: white;
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.95);
+            color: #667eea;
             border: none;
-            border-radius: 3px;
+            border-radius: 8px;
             cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
         }
         .torn-api-bar button:hover {
-            background: #45a049;
+            background: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         .torn-api-bar .close-btn {
-            background: #f44336;
-            margin-left: 10px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
         }
         .torn-api-bar .close-btn:hover {
-            background: #da190b;
+            background: rgb(220, 38, 38);
         }
         .torn-api-settings {
             position: fixed;
-            top: 50px;
-            right: 10px;
-            background: #333;
+            top: 60px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 10px 16px;
+            border-radius: 8px;
             cursor: pointer;
             z-index: 9999;
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .torn-api-settings:hover {
-            background: #555;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
         }
         .owned-item-check {
             color: #4CAF50;
@@ -162,10 +195,12 @@
         const bar = document.createElement('div');
         bar.className = 'torn-api-bar';
         bar.innerHTML = `
-            <span>${message}</span>
-            <input type="text" id="torn-api-input" placeholder="Enter API key here" />
-            <button id="torn-api-save">Save</button>
-            <button class="close-btn" id="torn-api-close">Cancel</button>
+            <div class="torn-api-bar-content">
+                <span class="torn-api-bar-text">${message}</span>
+                <input type="text" id="torn-api-input" placeholder="Paste your API key here..." />
+                <button id="torn-api-save">💾 Save</button>
+                <button class="close-btn" id="torn-api-close">✕ Close</button>
+            </div>
         `;
 
         document.body.insertBefore(bar, document.body.firstChild);
