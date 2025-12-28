@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Shopping List & Price Alert
 // @namespace    http://tampermonkey.net/
-// @version      6.1
+// @version      6.2
 // @description  Shopping list with price drop alerts for Torn.com Item Market & Bazaar
 // @author       You
 // @match        *://www.torn.com/*
@@ -637,21 +637,32 @@
     function addSidebarButton() {
         console.log('[Torn Shopping] addSidebarButton attempt', ++sidebarRetries);
         
-        // Try multiple selectors for sidebar
+        // Try specific selectors for Torn's actual sidebar (not body!)
         let sidebar = document.querySelector('#sidebar');
-        if (!sidebar) sidebar = document.querySelector('aside');
-        if (!sidebar) sidebar = document.querySelector('[class*="sidebar"]');
-        if (!sidebar) sidebar = document.querySelector('nav');
-        if (!sidebar) sidebar = document.querySelector('[class*="Sidebar"]');
+        if (!sidebar) sidebar = document.querySelector('aside.sidebar');
+        if (!sidebar) sidebar = document.querySelector('[class*="Sidebar___"]');
+        if (!sidebar) sidebar = document.querySelector('div.sidebar');
+        if (!sidebar) sidebar = document.querySelector('[data-testid="sidebar"]');
         
-        console.log('[Torn Shopping] Sidebar element:', sidebar);
-        
+        // Fallback: find element with class containing "sidebar" but NOT body
         if (!sidebar) {
+            const candidates = document.querySelectorAll('[class*="sidebar"]');
+            for (const candidate of candidates) {
+                if (candidate.tagName !== 'BODY') {
+                    sidebar = candidate;
+                    break;
+                }
+            }
+        }
+        
+        console.log('[Torn Shopping] Sidebar element:', sidebar?.tagName, sidebar?.className);
+        
+        if (!sidebar || sidebar.tagName === 'BODY') {
             if (sidebarRetries < MAX_RETRIES) {
-                console.log('[Torn Shopping] Sidebar not found, retrying...');
+                console.log('[Torn Shopping] Real sidebar not found, retrying...');
                 setTimeout(addSidebarButton, 1000);
             } else {
-                console.error('[Torn Shopping] Could not find sidebar after', MAX_RETRIES, 'attempts');
+                console.error('[Torn Shopping] Could not find real sidebar after', MAX_RETRIES, 'attempts');
                 // Add floating button as fallback
                 addFloatingButton();
             }
