@@ -2,33 +2,41 @@
 
 Automatically checkmark items you own in Torn.com market so you don't buy duplicates.
 
-update 1
-
 ## Installation
 
-1. **Install Tampermonkey**
+### Quick Install (Recommended)
+
+1. **Install Tampermonkey** (if you haven't already)
    - Chrome: [Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
    - Firefox: [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
    - Edge: [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
 
-2. **Install the Script**
-   - Click on the Tampermonkey icon in your browser
-   - Click "Create a new script"
-   - Delete all the default code
-   - Copy and paste the entire content from `torn-inventory-checker.user.js`
-   - Press Ctrl+S (or Cmd+S on Mac) to save
+2. **Install Script with One Click**
+   - Click here: [**Install torn-inventory-checker.user.js**](https://github.com/guilhermelimait/Torn-Market-Inventory-Checker/raw/main/torn-inventory-checker.user.js)
+   - Tampermonkey will open automatically
+   - Click "Install" button
+   - Done!
 
-3. **Get Your Torn API Key**
-   - Go to [Torn.com](https://www.torn.com)
-   - Navigate to Settings → API
-   - Create a new API key with "Minimal" or "Limited" access
+### Manual Install
+
+If the one-click install doesn't work:
+   - Open the [torn-inventory-checker.user.js](torn-inventory-checker.user.js) file
+   - Copy all the code
+   - Click Tampermonkey icon → "Create a new script"
+   - Paste the code and save (Ctrl+S)
+
+## Setup
+
+1. **Get Your Torn API Key**
+   - Go to [Torn.com Settings](https://www.torn.com/preferences.php#tab=api)
+   - Click "Create API key" (use Minimal or Limited access)
    - Copy the key
 
-4. **Configure the Script**
-   - Visit [Torn.com homepage](https://www.torn.com)
-   - A yellow bar will appear at the top
-   - Paste your API key and click "Save"
-   - Done!
+2. **Configure**
+   - Visit any Torn.com page
+   - You'll see a **yellow bar at the top** asking for your API key
+   - Paste your key and click "Save"
+   - Done! The script is now active
 
 ## Usage
 
