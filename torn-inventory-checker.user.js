@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      4.2
+// @version      4.3
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -15,7 +15,7 @@
     const API_KEY_STORAGE = 'torn_api_key';
     const INVENTORY_CACHE = 'torn_inventory_cache';
     const ITEM_DB_CACHE = 'torn_item_database';
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const CACHE_DURATION = 30 * 1000; // 30 seconds
     const DB_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
     // Add styles using standard DOM method
@@ -326,7 +326,7 @@
         settingsItem.style.cursor = 'pointer';
         settingsItem.innerHTML = `
             <a style="display: block; padding: 8px; cursor: pointer;">
-                <span>📦 Torn Market Inventory Checker</span>
+                <span>📦 Market Inventory Checker</span>
             </a>
         `;
         
@@ -337,14 +337,35 @@
             showApiBar('Update your Torn API key:');
         });
 
+        // Create refresh button
+        const refreshItem = document.createElement('li');
+        refreshItem.id = 'torn-inventory-refresh';
+        refreshItem.style.cursor = 'pointer';
+        refreshItem.innerHTML = `
+            <a style="display: block; padding: 8px; cursor: pointer; color: #4CAF50;">
+                <span>🔄 Refresh Inventory</span>
+            </a>
+        `;
+        
+        // Add refresh click handler
+        refreshItem.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log('[Torn Inventory] Refresh button clicked');
+            localStorage.removeItem(INVENTORY_CACHE);
+            refreshItem.innerHTML = `<a style="display: block; padding: 8px; cursor: pointer; color: #FFA500;"><span>⏳ Refreshing...</span></a>`;
+            await loadInventoryAndMark();
+            refreshItem.innerHTML = `<a style="display: block; padding: 8px; cursor: pointer; color: #4CAF50;"><span>🔄 Refresh Inventory</span></a>`;
+        });
+
         // Add to the first navigation list that looks like it has menu items
         let added = false;
         navLists.forEach((list, index) => {
             if (!added && list.querySelectorAll('li').length > 0) {
                 console.log('[Torn Inventory] Adding to navigation list', index);
                 list.appendChild(settingsItem);
+                list.appendChild(refreshItem);
                 added = true;
-                console.log('[Torn Inventory] Settings button successfully added to sidebar');
+                console.log('[Torn Inventory] Settings and refresh buttons successfully added to sidebar');
             }
         });
         
