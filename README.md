@@ -4,26 +4,25 @@ Automatically checkmark items you own in Torn.com market so you don't buy duplic
 
 ## Installation
 
-### Quick Install (Recommended)
+### Quick Install (One Click!)
 
 1. **Install Tampermonkey** (if you haven't already)
    - Chrome: [Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
    - Firefox: [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
    - Edge: [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
 
-2. **Install Script with One Click**
-   - Click here: [**Install torn-inventory-checker.user.js**](https://github.com/guilhermelimait/Torn-Market-Inventory-Checker/raw/main/torn-inventory-checker.user.js)
-   - Tampermonkey will open automatically
-   - Click "Install" button
-   - Done!
+2. **Click to Install** → [**Install torn-inventory-checker.user.js**](https://github.com/guilhermelimait/Torn-Market-Inventory-Checker/raw/main/torn-inventory-checker.user.js)
+   - The script will automatically open in Tampermonkey
+   - Just click the **"Install"** button
+   - That's it! No copy-paste needed
 
-### Manual Install
+### Manual Install (If needed)
 
-If the one-click install doesn't work:
-   - Open the [torn-inventory-checker.user.js](torn-inventory-checker.user.js) file
-   - Copy all the code
-   - Click Tampermonkey icon → "Create a new script"
-   - Paste the code and save (Ctrl+S)
+If the automatic install doesn't work:
+   - Open [torn-inventory-checker.user.js](torn-inventory-checker.user.js)
+   - Copy the code
+   - Tampermonkey icon → "Create a new script"
+   - Paste and save (Ctrl+S)
 
 ## Setup
 
