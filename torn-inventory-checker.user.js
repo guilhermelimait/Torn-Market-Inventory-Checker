@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      4.0
+// @version      4.1
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -354,19 +354,15 @@
             return;
         }
 
-        console.log('[Torn Inventory] markOwnedItems: Checking page elements for', inventoryIds.length, 'owned items');
-        console.log('[Torn Inventory] Current page URL:', window.location.href);
-        
         // Market pages - focus on actual market items
         const selectors = [
-            '[aria-label*="item"]',  // Aria labels - likely the real items!
+            '[aria-label*="item"]',
         ];
         
         let allElements = [];
         selectors.forEach(selector => {
             const elements = document.querySelectorAll(selector);
             if (elements.length > 0) {
-                console.log(`[Torn Inventory] Selector "${selector}" found ${elements.length} elements`);
                 // Filter out empty elements AND navigation items
                 const nonEmptyElements = Array.from(elements).filter(el => {
                     // Exclude menu items and navigation
@@ -377,58 +373,33 @@
                     }
                     return el.textContent.trim().length > 0 || el.children.length > 0;
                 });
-                console.log(`[Torn Inventory] After filtering: ${nonEmptyElements.length} elements`);
                 allElements.push(...nonEmptyElements);
             }
         });
         
         // Remove duplicates
         const itemElements = [...new Set(allElements)];
-        console.log('[Torn Inventory] markOwnedItems: Total unique elements:', itemElements.length);
         
         let markedCount = 0;
-        let debugCount = 0;
         itemElements.forEach(element => {
             const itemId = extractItemId(element, itemDatabase);
             
-            // Debug: Log first 5 elements to see their structure
-            if (debugCount < 5) {
-                const attrs = {};
-                for (let attr of element.attributes) {
-                    attrs[attr.name] = attr.value;
-                }
-                console.log('[Torn Inventory] DEBUG - Element' + (itemId ? ' WITH ID ' + itemId : ' without ID') + ':', {
-                    tag: element.tagName,
-                    id: element.id,
-                    classes: element.className,
-                    attributes: attrs,
-                    ariaLabel: element.getAttribute('aria-label'),
-                    datasetKeys: Object.keys(element.dataset),
-                    children: element.children.length,
-                    textContent: element.textContent.substring(0, 100),
-                    element: element
-                });
-                debugCount++;
-            }
-            
-            if (itemId) {
-                console.log('[Torn Inventory] Found item ID:', itemId, 'in element:', element);
-                if (inventoryIds.includes(itemId)) {
-                    console.log('[Torn Inventory] Item', itemId, 'is OWNED!');
-                    if (!element.querySelector('.owned-item-check')) {
-                        const checkmark = document.createElement('span');
-                        checkmark.className = 'owned-item-check';
-                        checkmark.textContent = '✓ OWNED';
-                        checkmark.title = 'You already own this item';
-                        element.classList.add('item-owned');
-                        element.appendChild(checkmark);
-                        markedCount++;
-                        console.log('[Torn Inventory] Successfully marked item ID:', itemId);
-                    }
+            if (itemId && inventoryIds.includes(itemId)) {
+                if (!element.querySelector('.owned-item-check')) {
+                    const checkmark = document.createElement('span');
+                    checkmark.className = 'owned-item-check';
+                    checkmark.textContent = '✓ OWNED';
+                    checkmark.title = 'You already own this item';
+                    element.classList.add('item-owned');
+                    element.appendChild(checkmark);
+                    markedCount++;
                 }
             }
         });
-        console.log('[Torn Inventory] markOwnedItems: Marked', markedCount, 'items as owned');
+        
+        if (markedCount > 0) {
+            console.log('[Torn Inventory] ✓ Marked', markedCount, 'owned items');
+        }
     }
 
     // Extract item ID from element using item database
