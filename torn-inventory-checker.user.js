@@ -83,28 +83,37 @@
 
     // Get stored API key
     function getApiKey() {
-        return localStorage.getItem(API_KEY_STORAGE);
+        const key = localStorage.getItem(API_KEY_STORAGE);
+        console.log('[Torn Inventory] getApiKey:', key ? 'Found' : 'Not found');
+        return key;
     }
 
     // Save API key
     function saveApiKey(key) {
+        console.log('[Torn Inventory] saveApiKey: Saving API key');
         localStorage.setItem(API_KEY_STORAGE, key);
     }
 
     // Get cached inventory
     function getCachedInventory() {
         const cached = localStorage.getItem(INVENTORY_CACHE);
-        if (!cached) return null;
+        if (!cached) {
+            console.log('[Torn Inventory] getCachedInventory: No cache found');
+            return null;
+        }
 
         const data = JSON.parse(cached);
         if (Date.now() - data.timestamp > CACHE_DURATION) {
+            console.log('[Torn Inventory] getCachedInventory: Cache expired');
             return null;
         }
+        console.log('[Torn Inventory] getCachedInventory: Using cached inventory with', data.inventory.length, 'items');
         return data.inventory;
     }
 
     // Save inventory to cache
     function saveInventoryCache(inventory) {
+        console.log('[Torn Inventory] saveInventoryCache: Caching', inventory.length, 'items');
         const data = {
             inventory: inventory,
             timestamp: Date.now()
@@ -114,12 +123,15 @@
 
     // Fetch user inventory from API
     async function fetchInventory(apiKey) {
+        console.log('[Torn Inventory] fetchInventory: Starting API call...');
         try {
             const response = await fetch(`https://api.torn.com/user/?selections=inventory&key=${apiKey}`);
+            console.log('[Torn Inventory] fetchInventory: Response status:', response.status);
             const data = await response.json();
+            console.log('[Torn Inventory] fetchInventory: Data received:', data);
 
             if (data.error) {
-                console.error('Torn API Error:', data.error);
+                console.error('[Torn Inventory] Torn API Error:', data.error);
                 alert('API Error: ' + data.error.error);
                 return null;
             }
@@ -131,15 +143,18 @@
                 }
             }
 
-            return Array.from(itemIds);
+            const result = Array.from(itemIds);
+            console.log('[Torn Inventory] fetchInventory: Found', result.length, 'unique items');
+            return result;
         } catch (error) {
-            console.error('Error fetching inventory:', error);
+            console.error('[Torn Inventory] Error fetching inventory:', error);
             return null;
         }
     }
 
     // Show API key input bar
     function showApiBar(message = 'Enter your Torn API key to enable inventory checking:') {
+        console.log('[Torn Inventory] showApiBar: Displaying API input bar');
         // Remove existing bar if any
         const existingBar = document.querySelector('.torn-api-bar');
         if (existingBar) existingBar.remove();
@@ -190,11 +205,17 @@
 
     // Mark items as owned
     function markOwnedItems(inventoryIds) {
-        if (!inventoryIds || inventoryIds.length === 0) return;
+        if (!inventoryIds || inventoryIds.length === 0) {
+            console.log('[Torn Inventory] markOwnedItems: No inventory items to mark');
+            return;
+        }
 
+        console.log('[Torn Inventory] markOwnedItems: Checking page elements for', inventoryIds.length, 'owned items');
         // Market pages
         const itemElements = document.querySelectorAll('[class*="item"]');
+        console.log('[Torn Inventory] markOwnedItems: Found', itemElements.length, 'potential item elements');
         
+        let markedCount = 0;
         itemElements.forEach(element => {
             const itemId = extractItemId(element);
             if (itemId && inventoryIds.includes(itemId)) {
@@ -205,9 +226,12 @@
                     checkmark.title = 'You already own this item';
                     element.classList.add('item-owned');
                     element.appendChild(checkmark);
+                    markedCount++;
+                    console.log('[Torn Inventory] Marked item ID:', itemId, 'as owned');
                 }
             }
         });
+        console.log('[Torn Inventory] markOwnedItems: Marked', markedCount, 'items as owned');
     }
 
     // Extract item ID from element (you may need to adjust this based on Torn's actual HTML structure)
