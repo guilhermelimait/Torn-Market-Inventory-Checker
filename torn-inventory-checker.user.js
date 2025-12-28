@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      4.1
+// @version      4.2
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        *://www.torn.com/*
@@ -86,12 +86,23 @@
             background: #b91c1c;
         }
         .owned-item-check {
-            color: #4CAF50;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #4CAF50;
+            color: white;
             font-weight: bold;
-            margin-left: 5px;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
         }
         .item-owned {
-            background: rgba(76, 175, 80, 0.1) !important;
+            position: relative;
+            border: 2px solid #4CAF50 !important;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.4) !important;
         }
     `;
     document.head.appendChild(styleElement);
@@ -385,13 +396,21 @@
             const itemId = extractItemId(element, itemDatabase);
             
             if (itemId && inventoryIds.includes(itemId)) {
-                if (!element.querySelector('.owned-item-check')) {
-                    const checkmark = document.createElement('span');
+                // Find the parent item container (the card/tile that contains the item)
+                let itemContainer = element.closest('li, [class*="item"], [class*="Item"]');
+                if (!itemContainer || itemContainer.classList.contains('menu-item-link')) {
+                    // If no suitable container, use the element itself
+                    itemContainer = element;
+                }
+                
+                if (!itemContainer.querySelector('.owned-item-check')) {
+                    const checkmark = document.createElement('div');
                     checkmark.className = 'owned-item-check';
                     checkmark.textContent = '✓ OWNED';
                     checkmark.title = 'You already own this item';
-                    element.classList.add('item-owned');
-                    element.appendChild(checkmark);
+                    itemContainer.classList.add('item-owned');
+                    itemContainer.style.position = 'relative'; // Ensure positioning context
+                    itemContainer.appendChild(checkmark);
                     markedCount++;
                 }
             }
