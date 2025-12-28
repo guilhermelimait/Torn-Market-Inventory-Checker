@@ -1,16 +1,18 @@
 // ==UserScript==
 // @name         Torn Market Inventory Checker
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Checkmark items you own in Torn.com market
 // @author       You
 // @match        https://www.torn.com/*
 // @grant        GM_addStyle
-// @run-at       document-idle
+// @run-at       document-end
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+    console.log('[Torn Inventory] Script loaded!');
 
     const API_KEY_STORAGE = 'torn_api_key';
     const INVENTORY_CACHE = 'torn_inventory_cache';
@@ -271,26 +273,34 @@
 
     // Initialize
     function init() {
+        console.log('[Torn Inventory] Initializing...');
         const apiKey = getApiKey();
+        console.log('[Torn Inventory] API Key exists:', !!apiKey);
 
         // Show API bar if no key is stored
         if (!apiKey) {
+            console.log('[Torn Inventory] No API key found, showing input bar');
             setTimeout(() => showApiBar(), 500);
         }
 
         // Always add settings button
+        console.log('[Torn Inventory] Adding settings button');
         addSettingsButton();
 
         // Load and mark items
         if (apiKey) {
+            console.log('[Torn Inventory] Loading inventory...');
             loadInventoryAndMark();
         }
     }
 
     // Start when page is ready
+    console.log('[Torn Inventory] Document ready state:', document.readyState);
     if (document.readyState === 'loading') {
+        console.log('[Torn Inventory] Waiting for DOMContentLoaded');
         document.addEventListener('DOMContentLoaded', init);
     } else {
+        console.log('[Torn Inventory] Document ready, initializing now');
         init();
     }
 })();
